@@ -1,0 +1,6 @@
+{
+  "name": "AI CEO Command Center",
+  "description": "Executive business intelligence, revenue leak detection, and AI decision-support command center for CEOs and leadership.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
