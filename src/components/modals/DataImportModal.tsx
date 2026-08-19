@@ -11,7 +11,7 @@ import {
 import { useApp } from '../../context/AppContext';
 
 export const DataImportModal: React.FC = () => {
-  const { isDataImportOpen, setIsDataImportOpen, importData } = useApp();
+  const { isDataImportOpen, setIsDataImportOpen, importData, addToast } = useApp();
   const [dataType, setDataType] = useState<'leads' | 'customers' | 'expenses' | 'invoices'>('leads');
   const [rawText, setRawText] = useState('');
   const [importResult, setImportResult] = useState<{ success: number; errors: number } | null>(null);
@@ -72,7 +72,7 @@ export const DataImportModal: React.FC = () => {
       }, 1500);
     } catch (err) {
       console.error(err);
-      alert('Failed to parse data format. Please provide valid JSON or CSV.');
+      addToast('Failed to parse data format. Please provide valid JSON or CSV.', 'error', 'Import Failed');
     }
   };
 

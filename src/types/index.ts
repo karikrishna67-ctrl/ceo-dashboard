@@ -423,3 +423,98 @@ export interface FilterState {
   departmentFilter?: string;
   searchQuery?: string;
 }
+
+export interface ToastMessage {
+  id: string;
+  title?: string;
+  message: string;
+  type: 'success' | 'error' | 'info' | 'warning';
+  duration?: number;
+}
+
+export interface FunnelStage {
+  id: string;
+  name: string;
+  count: number;
+  value: number;
+  conversionToNext: number; // percentage (e.g. 65%)
+  isBottleneck?: boolean;
+}
+
+export interface KPISnapshot {
+  // Primary Metrics
+  revenueMTD: number;
+  revenueTarget: number;
+  revenueGap: number;
+  revenueAchievementPct: number;
+  revenueGrowthMoM: number;
+  daysRemainingInMonth: number;
+  requiredDailyRevenue: number;
+  requiredDealsCount: number;
+  requiredLeadsCount: number;
+
+  // Profitability
+  cogsMTD: number;
+  grossProfit: number;
+  grossMarginPct: number;
+  operatingExpenses: number;
+  ebitda: number;
+  netProfit: number;
+  netMarginPct: number;
+
+  // Cash & Balance
+  cashBalance: number;
+  monthlyBurnRate: number;
+  cashRunwayMonths: number;
+  runwayMonths: number;
+  outstandingReceivables: number;
+  overdueReceivables: number;
+  accountsPayable: number;
+  dsoDays: number;
+  dpoDays: number;
+  workingCapital: number;
+
+  // Sales & CRM
+  totalLeads: number;
+  qualifiedLeads: number;
+  pipelineValue: number;
+  winRatePct: number;
+  averageDealSize: number;
+  salesCycleDays: number;
+  wonDealsValue: number;
+  wonDealsCount: number;
+
+  // Customers & Retention
+  totalCustomers: number;
+  activeCustomers: number;
+  atRiskCustomersCount: number;
+  churnRatePct: number;
+  retentionRatePct: number;
+  avgLTV: number;
+  mrr: number;
+  arr: number;
+
+  // Marketing
+  marketingSpend: number;
+  marketingRevenue: number;
+  blendedCAC: number;
+  blendedCPL: number;
+  blendedROAS: number;
+  topChannel: string;
+  underperformingChannel: string;
+
+  // Health Score & Leakage
+  healthScore: HealthScoreBreakdown;
+  leakage: RevenueLeakageBreakdown;
+  salesFunnel: FunnelStage[];
+  biggestBottleneck: { stage: string; dropPct: number; message: string };
+
+  // Executive Questions
+  whatIsGoingWell: string[];
+  whatIsGoingWrong: string[];
+  whereLosingMoney: string[];
+  whereMakeMoreMoney: string[];
+  top3ActionsToday: CEOActionTask[];
+}
+
+

@@ -38,8 +38,10 @@ export interface KPIProgressCardProps {
   history30d?: number[];
   actionRoute?: string;
   onClick?: () => void;
+  onWhyClick?: () => void;
   enableModal?: boolean;
   enableDownloadCsv?: boolean;
+  dataTrustTag?: 'ACTUAL' | 'CALCULATED' | 'FORECAST' | 'ESTIMATE' | 'AI RECOMMENDATION';
   timeElapsedPct?: number; // e.g. 67.7% for day 61 of 90
   projectedToMiss?: boolean; // Explicit manual threshold override
   enableThresholdMonitoring?: boolean; // Defaults to true
@@ -75,8 +77,10 @@ export const KPIProgressCard: React.FC<KPIProgressCardProps> = ({
   history30d,
   actionRoute,
   onClick,
+  onWhyClick,
   enableModal = true,
   enableDownloadCsv = true,
+  dataTrustTag,
   timeElapsedPct = 67.7,
   projectedToMiss,
   enableThresholdMonitoring = true,
@@ -178,7 +182,7 @@ export const KPIProgressCard: React.FC<KPIProgressCardProps> = ({
         return {
           status: 'achieved',
           title: 'Target Surpassed',
-          summary: `Currently at ${percent}% of ${quarterLabel}. Growth momentum is exceeding baseline target by ${(percent - 100).toFixed(1)}%.`,
+          summary: `Currently at ${percent}% of ${quarterLabel}. Growth momentum is exceeding baseline target by ${((percent || 0) - 100).toFixed(1)}%.`,
           velocity: `${velocityDelta} performance velocity`,
           recommendation: 'Lock in multi-year contract renewals and allocate surplus capacity toward expanding higher-margin pipeline.',
           confidence: 96,
@@ -186,7 +190,7 @@ export const KPIProgressCard: React.FC<KPIProgressCardProps> = ({
       }
 
       if (isAheadOfPace) {
-        const surplusPct = (percent - timeElapsedPct).toFixed(1);
+        const surplusPct = ((percent || 0) - (timeElapsedPct || 0)).toFixed(1);
         return {
           status: 'ahead',
           title: 'Ahead of Quarterly Pacing',
@@ -198,7 +202,7 @@ export const KPIProgressCard: React.FC<KPIProgressCardProps> = ({
       }
 
       // Behind pace / Projected miss
-      const deficitPct = (timeElapsedPct - percent).toFixed(1);
+      const deficitPct = ((timeElapsedPct || 0) - (percent || 0)).toFixed(1);
       return {
         status: 'lag',
         title: isThresholdMiss ? 'Projected Target Miss Risk' : 'Pacing Deficit Alert',
@@ -479,27 +483,64 @@ export const KPIProgressCard: React.FC<KPIProgressCardProps> = ({
 
   const isInteractive = Boolean(onClick || enableModal);
 
+  // Dynamic Performance Tier for border shift
+  const performanceTier = useMemo<'exceeding' | 'critical' | 'meeting'>(() => {
+    if (isThresholdMiss) return 'critical';
+    if (hasTarget && percent >= 100) return 'exceeding';
+    if (hasTarget && isAheadOfPace && percent >= timeElapsedPct + 3) return 'exceeding';
+    if (highlightBorder) return 'exceeding';
+    if (!isPositive && !hasTarget && typeof change === 'string' && change.includes('-')) return 'critical';
+    return 'meeting';
+  }, [isThresholdMiss, hasTarget, percent, isAheadOfPace, timeElapsedPct, highlightBorder, isPositive, change]);
+
+  const borderTierClasses = useMemo(() => {
+    switch (performanceTier) {
+      case 'exceeding':
+        return 'border-amber-300 ring-1 ring-amber-300/50 bg-linear-to-b from-amber-50/25 to-white shadow-xs';
+      case 'critical':
+        return 'animate-threshold-pulse border-rose-300 ring-1 ring-rose-400/80 bg-rose-50/15';
+      case 'meeting':
+      default:
+        return 'border-slate-200/90 hover:border-slate-300 bg-white';
+    }
+  }, [performanceTier]);
+
   return (
     <>
       <div
         id={id}
         onClick={handleCardClick}
-        className={`group relative p-4 rounded-xl bg-white border transition-all duration-200 shadow-xs hover:shadow-sm ${
+        className={`group relative p-4 rounded-xl border transition-all duration-200 shadow-xs hover:shadow-sm ${
           isInteractive ? 'cursor-pointer hover:border-slate-300' : ''
-        } ${
-          isThresholdMiss
-            ? 'animate-threshold-pulse border-rose-300 ring-1 ring-rose-400/70'
-            : highlightBorder
-            ? 'ring-1 ring-amber-400/60 border-amber-300'
-            : 'border-slate-200/80'
-        } ${className}`}
+        } ${borderTierClasses} ${className}`}
       >
-        {/* Top Header: Label, Threshold Warning Beacon, & Icon / AI Info / Expand Button */}
+        {/* Top Header: Label, Trust Tag, Threshold Warning Beacon, & Icon / AI Info / Expand Button */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-xs font-medium text-slate-500 tracking-tight truncate">
+          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+            <span className="text-xs font-medium text-slate-600 tracking-tight truncate">
               {label}
             </span>
+
+            {/* Data Trust Tag */}
+            {dataTrustTag && (
+              <span
+                className={`text-[8px] font-bold px-1.5 py-0.2 rounded tracking-wider uppercase shrink-0 ${
+                  dataTrustTag === 'ACTUAL'
+                    ? 'bg-slate-100 text-slate-600 border border-slate-200'
+                    : dataTrustTag === 'CALCULATED'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                    : dataTrustTag === 'FORECAST'
+                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                    : dataTrustTag === 'AI RECOMMENDATION'
+                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                    : 'bg-slate-100 text-slate-500'
+                }`}
+                title={`Data Trust Level: ${dataTrustTag}`}
+              >
+                [{dataTrustTag}]
+              </span>
+            )}
+
             {isThresholdMiss && (
               <div
                 className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200/80 shrink-0"
@@ -512,9 +553,35 @@ export const KPIProgressCard: React.FC<KPIProgressCardProps> = ({
                 <span>Miss Risk</span>
               </div>
             )}
+
+            {performanceTier === 'exceeding' && (
+              <span
+                className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-amber-100/80 text-amber-900 border border-amber-300/80 shrink-0"
+                title="Exceeding Target Performance Tier"
+              >
+                <Sparkles className="w-2.5 h-2.5 text-amber-600" />
+                <span>Top Tier</span>
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
+            {/* AI 'WHY?' Diagnostic Button */}
+            {onWhyClick && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onWhyClick();
+                }}
+                className="px-1.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-900 hover:bg-slate-800 text-amber-300 transition-all flex items-center gap-1 shadow-2xs hover:scale-105 active:scale-95"
+                title="Run AI Root-Cause 'Why?' Analysis"
+                aria-label={`Why did ${label} change?`}
+              >
+                <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+                <span>WHY?</span>
+              </button>
+            )}
             {/* AI Pacing & Velocity Insight Info Icon with Hover Popover */}
             <div className="relative group/ai shrink-0" onClick={(e) => e.stopPropagation()}>
               <button
@@ -578,7 +645,7 @@ export const KPIProgressCard: React.FC<KPIProgressCardProps> = ({
                             isAheadOfPace ? 'text-emerald-400' : 'text-rose-400'
                           }`}
                         >
-                          {(timeElapsedPct > 0 ? (percent / timeElapsedPct) * 100 : 100).toFixed(1)}% of Target
+                          {(timeElapsedPct > 0 ? ((percent || 0) / timeElapsedPct) * 100 : 100).toFixed(1)}% of Target
                         </span>
                       </div>
                     )}
@@ -695,11 +762,11 @@ export const KPIProgressCard: React.FC<KPIProgressCardProps> = ({
           )}
           {isThresholdMiss ? (
             <span className="text-[10px] font-bold text-rose-600 font-mono-numeric">
-              Miss Risk ({(timeElapsedPct > 0 ? (percent / timeElapsedPct) * 100 : 0).toFixed(0)}% pace)
+              Miss Risk ({(timeElapsedPct > 0 ? ((percent || 0) / timeElapsedPct) * 100 : 0).toFixed(0)}% pace)
             </span>
           ) : isAheadOfPace && hasTarget ? (
             <span className="text-[10px] font-bold text-emerald-700 font-mono-numeric">
-              On Track (+{(percent - timeElapsedPct).toFixed(1)}% pace)
+              On Track (+{((percent || 0) - (timeElapsedPct || 0)).toFixed(1)}% pace)
             </span>
           ) : (
             <span className="text-[10px] font-medium text-slate-400">

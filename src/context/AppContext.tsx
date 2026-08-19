@@ -16,6 +16,7 @@ import {
   FilterState,
   DateFilterOption,
   CurrencyCode,
+  ToastMessage,
 } from '../types';
 import {
   DEMO_ORG,
@@ -39,6 +40,7 @@ interface AppContextType {
   setCurrentUser: (user: User) => void;
   currentOrg: Organization;
   setCurrentOrg: React.Dispatch<React.SetStateAction<Organization>>;
+  updateOrgSettings: (settings: Partial<Organization['settings']>) => void;
   userRole: UserRole;
   setUserRole: (role: UserRole) => void;
   isAuthenticated: boolean;
@@ -71,13 +73,24 @@ interface AppContextType {
   // Mutations
   addLead: (lead: Omit<Lead, 'id' | 'organizationId' | 'createdDate'>) => void;
   updateLeadStatus: (leadId: string, status: Lead['status']) => void;
+  updateLead: (leadId: string, updates: Partial<Lead>) => void;
   addCustomer: (customer: Omit<Customer, 'id' | 'organizationId'>) => void;
   addExpense: (expense: Omit<Expense, 'id' | 'organizationId'>) => void;
   addInvoice: (invoice: Omit<Invoice, 'id' | 'organizationId'>) => void;
+  updateInvoiceStatus: (invoiceId: string, status: Invoice['status']) => void;
+  addActionTask: (task: Omit<CEOActionTask, 'id' | 'organizationId' | 'createdAt'>) => void;
   updateActionStatus: (actionId: string, status: CEOActionTask['status']) => void;
+  deleteActionTask: (taskId: string) => void;
+  addCampaign: (campaign: Omit<MarketingCampaign, 'id' | 'organizationId'>) => void;
+  addEmployee: (employee: Omit<Employee, 'id' | 'organizationId'>) => void;
   convertOpportunityToTask: (oppId: string) => void;
   markAlertRead: (alertId: string) => void;
   markAllAlertsRead: () => void;
+
+  // Toasts
+  toasts: ToastMessage[];
+  addToast: (message: string, type?: ToastMessage['type'], title?: string, duration?: number) => void;
+  removeToast: (id: string) => void;
 
   // Import & Reset
   importData: (type: 'leads' | 'customers' | 'expenses' | 'invoices', records: any[]) => { success: number; errors: number };
@@ -109,6 +122,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentOrg, setCurrentOrg] = useState<Organization>(DEMO_ORG);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [activeView, setActiveView] = useState<string>('command-center');
+
+  // Toasts State
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = (
+    message: string,
+    type: ToastMessage['type'] = 'success',
+    title?: string,
+    duration: number = 4000
+  ) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const newToast: ToastMessage = { id, message, type, title, duration };
+    setToasts((prev) => [...prev, newToast]);
+
+    if (duration > 0) {
+      setTimeout(() => {
+        removeToast(id);
+      }, duration);
+    }
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   // Filter state
   const [filters, setFilters] = useState<FilterState>({
@@ -152,6 +189,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currency: newCurrency,
       },
     }));
+    addToast(`Currency updated to ${newCurrency}`, 'info');
+  };
+
+  const updateOrgSettings = (settings: Partial<Organization['settings']>) => {
+    setCurrentOrg((prev) => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        ...settings,
+      },
+    }));
+    addToast('Organization settings updated successfully.', 'success');
   };
 
   const userRole = currentUser.role;
@@ -162,6 +211,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       role,
     };
     setCurrentUser(matchingUser);
+    addToast(`Switched active view role to ${role}`, 'info');
   };
 
   const login = (email: string, role: UserRole = UserRole.CEO) => {
@@ -176,10 +226,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setCurrentUser(matched);
     setIsAuthenticated(true);
+    addToast(`Welcome back, ${matched.name}!`, 'success');
   };
 
   const logout = () => {
     setIsAuthenticated(false);
+    addToast('Logged out securely.', 'info');
   };
 
   const setDateRange = (dateRange: DateFilterOption) => {
@@ -197,6 +249,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `lead-${Date.now()}`,
       organizationId: currentOrg.id,
       createdDate: new Date().toISOString().split('T')[0],
+      lastContactDate: new Date().toISOString().split('T')[0],
+      nextFollowupDate: newLeadData.nextFollowupDate || new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0],
+      activities: [],
     };
     setLeads((prev) => [newLead, ...prev]);
 
@@ -205,13 +260,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `alt-${Date.now()}`,
       organizationId: currentOrg.id,
       title: `New High-Value Lead Added: ${newLead.company}`,
-      message: `${newLead.name} added with estimated value of ₹${(newLead.estimatedValue / 100000).toFixed(1)}L.`,
+      message: `${newLead.name} added with estimated value of ₹${(((newLead.estimatedValue || 0) / 100000) || 0).toFixed(1)}L.`,
       severity: newLead.leadScore >= 80 ? 'HIGH' : 'INFO',
       category: 'SALES',
       timestamp: new Date().toLocaleTimeString(),
       isRead: false,
     };
     setAlerts((prev) => [newAlert, ...prev]);
+    addToast(`Lead "${newLead.name}" added to pipeline!`, 'success');
   };
 
   const updateLeadStatus = (leadId: string, status: Lead['status']) => {
@@ -222,10 +278,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               ...l,
               status,
               dealProbability: status === 'Won' ? 100 : status === 'Lost' ? 0 : status === 'Negotiation' ? 80 : l.dealProbability,
+              lastContactDate: new Date().toISOString().split('T')[0],
             }
           : l
       )
     );
+    addToast(`Lead status moved to ${status}`, 'info');
+  };
+
+  const updateLead = (leadId: string, updates: Partial<Lead>) => {
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, ...updates } : l))
+    );
+    addToast('Lead details saved.', 'success');
   };
 
   const addCustomer = (customerData: Omit<Customer, 'id' | 'organizationId'>) => {
@@ -235,6 +300,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       organizationId: currentOrg.id,
     };
     setCustomers((prev) => [newCustomer, ...prev]);
+    addToast(`Customer "${newCustomer.name}" added!`, 'success');
   };
 
   const addExpense = (expenseData: Omit<Expense, 'id' | 'organizationId'>) => {
@@ -244,6 +310,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       organizationId: currentOrg.id,
     };
     setExpenses((prev) => [newExpense, ...prev]);
+    addToast(`Expense entry recorded successfully.`, 'success');
   };
 
   const addInvoice = (invoiceData: Omit<Invoice, 'id' | 'organizationId'>) => {
@@ -253,12 +320,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       organizationId: currentOrg.id,
     };
     setInvoices((prev) => [newInvoice, ...prev]);
+    addToast(`Invoice ${newInvoice.invoiceNumber} created!`, 'success');
+  };
+
+  const updateInvoiceStatus = (invoiceId: string, status: Invoice['status']) => {
+    setInvoices((prev) =>
+      prev.map((inv) =>
+        inv.id === invoiceId
+          ? {
+              ...inv,
+              status,
+              paidDate: status === 'Paid' ? new Date().toISOString().split('T')[0] : undefined,
+            }
+          : inv
+      )
+    );
+    addToast(`Invoice status marked as ${status}.`, 'success');
+  };
+
+  const addActionTask = (taskData: Omit<CEOActionTask, 'id' | 'organizationId' | 'createdAt'>) => {
+    const newTask: CEOActionTask = {
+      ...taskData,
+      id: `act-${Date.now()}`,
+      organizationId: currentOrg.id,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    setActions((prev) => [newTask, ...prev]);
+    addToast(`Action task "${newTask.title}" added to board!`, 'success');
   };
 
   const updateActionStatus = (actionId: string, status: CEOActionTask['status']) => {
     setActions((prev) =>
-      prev.map((a) => (a.id === actionId ? { ...a, status, completedAt: status === 'Completed' ? new Date().toISOString() : undefined } : a))
+      prev.map((a) =>
+        a.id === actionId
+          ? {
+              ...a,
+              status,
+              completedAt: status === 'Completed' ? new Date().toISOString() : undefined,
+            }
+          : a
+      )
     );
+    addToast(`Task marked as ${status}.`, 'info');
+  };
+
+  const deleteActionTask = (taskId: string) => {
+    setActions((prev) => prev.filter((a) => a.id !== taskId));
+    addToast('Action task removed.', 'info');
+  };
+
+  const addCampaign = (campaignData: Omit<MarketingCampaign, 'id' | 'organizationId'>) => {
+    const newCampaign: MarketingCampaign = {
+      ...campaignData,
+      id: `camp-${Date.now()}`,
+      organizationId: currentOrg.id,
+    };
+    setCampaigns((prev) => [newCampaign, ...prev]);
+    addToast(`Campaign "${newCampaign.name}" launched!`, 'success');
+  };
+
+  const addEmployee = (employeeData: Omit<Employee, 'id' | 'organizationId'>) => {
+    const newEmp: Employee = {
+      ...employeeData,
+      id: `emp-${Date.now()}`,
+      organizationId: currentOrg.id,
+    };
+    setEmployees((prev) => [newEmp, ...prev]);
+    addToast(`Team member "${newEmp.name}" added!`, 'success');
   };
 
   const convertOpportunityToTask = (oppId: string) => {
@@ -272,7 +400,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       problem: opp.description,
       recommendedAction: opp.recommendedAction,
       expectedImpactAmount: opp.potentialRevenue,
-      expectedImpactDescription: `Revenue capture opportunity of ₹${(opp.potentialRevenue / 100000).toFixed(1)}L`,
+      expectedImpactDescription: `Revenue capture opportunity of ₹${(((opp.potentialRevenue || 0) / 100000) || 0).toFixed(1)}L`,
       owner: currentUser.name,
       priority: opp.priority === 'CRITICAL' ? 'CRITICAL' : 'HIGH',
       dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
@@ -282,6 +410,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setActions((prev) => [newTask, ...prev]);
+    addToast(`Playbook "${opp.title}" queued into CEO Action board!`, 'success');
     setActiveView('tasks');
   };
 
@@ -291,6 +420,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const markAllAlertsRead = () => {
     setAlerts((prev) => prev.map((a) => ({ ...a, isRead: true })));
+    addToast('All alerts marked as read.', 'info');
   };
 
   const importData = (type: 'leads' | 'customers' | 'expenses' | 'invoices', records: any[]) => {
@@ -345,6 +475,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCustomers((prev) => [...formatted, ...prev]);
       successCount = formatted.length;
     }
+    addToast(`Successfully imported ${successCount} records!`, 'success');
     return { success: successCount, errors: 0 };
   };
 
@@ -356,6 +487,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isDemoMode: !prev.settings.isDemoMode,
       },
     }));
+    addToast('Demo Mode toggled.', 'info');
   };
 
   const resetDemoData = () => {
@@ -370,6 +502,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAlerts(DEMO_ALERTS);
     setOpportunities(DEMO_OPPORTUNITIES);
     setCurrentOrg(DEMO_ORG);
+    addToast('Enterprise demo dataset restored!', 'success');
   };
 
   const clearToEmptyState = () => {
@@ -385,6 +518,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...prev,
       settings: { ...prev.settings, isDemoMode: false },
     }));
+    addToast('Workspace reset to empty state.', 'info');
   };
 
   // Compute live KPI snapshot whenever data changes
@@ -409,6 +543,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCurrentUser,
         currentOrg,
         setCurrentOrg,
+        updateOrgSettings,
         userRole,
         setUserRole,
         isAuthenticated,
@@ -433,13 +568,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         opportunities,
         addLead,
         updateLeadStatus,
+        updateLead,
         addCustomer,
         addExpense,
         addInvoice,
+        updateInvoiceStatus,
+        addActionTask,
         updateActionStatus,
+        deleteActionTask,
+        addCampaign,
+        addEmployee,
         convertOpportunityToTask,
         markAlertRead,
         markAllAlertsRead,
+        toasts,
+        addToast,
+        removeToast,
         importData,
         toggleDemoMode,
         resetDemoData,

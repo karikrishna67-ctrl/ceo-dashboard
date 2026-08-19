@@ -18,6 +18,12 @@ import {
   Play,
   Layers,
   Target,
+  Zap,
+  RotateCcw,
+  UserCheck,
+  Send,
+  Bell,
+  Check,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -33,14 +39,16 @@ import {
   Area,
 } from 'recharts';
 import { useApp } from '../../context/AppContext';
+import { useDashboardData } from '../../hooks/useDashboardData';
 import { formatCurrency, formatPercent } from '../../lib/formatters';
 import { TargetProgressBar } from '../common/TargetProgressBar';
 import { KPIProgressCard } from '../common/KPIProgressCard';
+import { AIWhyAnalysisModal, WhyDiagnostic } from '../modals/AIWhyAnalysisModal';
+import { RevenueGoalPlannerModal } from '../modals/RevenueGoalPlannerModal';
 
 export const CEOCommandCenterView: React.FC = () => {
   const {
     currentOrg,
-    kpiSnapshot,
     currency,
     actions,
     updateActionStatus,
@@ -48,14 +56,40 @@ export const CEOCommandCenterView: React.FC = () => {
     setIsBriefingOpen,
   } = useApp();
 
+  const { kpiSnapshot, verifyIntegrity } = useDashboardData();
+
   const [trendGranularity, setTrendGranularity] = useState<'Daily' | 'Weekly' | 'Monthly'>('Weekly');
+  const [selectedWhyDiagnostic, setSelectedWhyDiagnostic] = useState<WhyDiagnostic | null>(null);
+  const [isWhyModalOpen, setIsWhyModalOpen] = useState(false);
+  const [isGoalPlannerOpen, setIsGoalPlannerOpen] = useState(false);
+  const [activeActionFeedback, setActiveActionFeedback] = useState<{ [key: string]: string }>({});
 
   // Revenue vs Target Chart Data
   const revenueTrendData = [
-    { period: 'W1 (Aug 1-7)', actual: 850000, target: 1250000, forecast: 900000 },
-    { period: 'W2 (Aug 8-14)', actual: 1950000, target: 2500000, forecast: 2100000 },
-    { period: 'W3 (Current)', actual: 3850000, target: 3750000, forecast: 4100000 },
-    { period: 'W4 (Forecast)', actual: null, target: 5000000, forecast: 4920000 },
+    {
+      period: 'W1 (Aug 1-7)',
+      actual: Math.round(kpiSnapshot.revenueMTD * 0.22),
+      target: Math.round(kpiSnapshot.revenueTarget * 0.25),
+      forecast: Math.round(kpiSnapshot.revenueMTD * 0.24),
+    },
+    {
+      period: 'W2 (Aug 8-14)',
+      actual: Math.round(kpiSnapshot.revenueMTD * 0.51),
+      target: Math.round(kpiSnapshot.revenueTarget * 0.5),
+      forecast: Math.round(kpiSnapshot.revenueMTD * 0.55),
+    },
+    {
+      period: 'W3 (Current)',
+      actual: kpiSnapshot.revenueMTD,
+      target: Math.round(kpiSnapshot.revenueTarget * 0.75),
+      forecast: Math.round(kpiSnapshot.revenueMTD * 1.05),
+    },
+    {
+      period: 'W4 (Forecast)',
+      actual: null,
+      target: kpiSnapshot.revenueTarget,
+      forecast: Math.min(kpiSnapshot.revenueTarget, Math.round(kpiSnapshot.revenueMTD * 1.28)),
+    },
   ];
 
   // 8 Top KPI Cards
@@ -63,6 +97,250 @@ export const CEOCommandCenterView: React.FC = () => {
   const quarterlyPipelineTarget = 45000000;
   const quarterlyLeadsTarget = 150;
   const quarterlyProfitTarget = 3600000;
+
+  const handleOpenWhy = (kpiId: string) => {
+    const diagnosticMap: { [key: string]: WhyDiagnostic } = {
+      'kpi-rev': {
+        kpiId: 'kpi-rev',
+        kpiLabel: 'Monthly Revenue MTD',
+        currentValue: formatCurrency(kpiSnapshot.revenueMTD, currency),
+        prevValue: formatCurrency(3370000, currency),
+        change: '+14.2%',
+        isPositive: true,
+        question: 'Why did Monthly Revenue accelerate by +14.2% this month?',
+        primaryCause: {
+          factor: 'Surge in Mid-Market Deal Size (+18% ARPA)',
+          variance: '+18% ARPA',
+          impactAmount: '+₹8.5L',
+          severity: 'medium',
+          description: '3 major enterprise renewals closed with 2-year upfront commitments, lifting Average Revenue Per Account from ₹85k to ₹1.15L.',
+        },
+        contributors: [
+          {
+            id: 'c1',
+            factor: 'Upsell Campaign to Existing Cohort',
+            variance: '+45% of variance',
+            weightPct: 45,
+            trend: 'up',
+            detail: '28 accounts upgraded to the Premium Analytics add-on after automated email outreach.',
+          },
+          {
+            id: 'c2',
+            factor: 'Inbound Lead Velocity',
+            variance: '+35% of variance',
+            weightPct: 35,
+            trend: 'up',
+            detail: 'Qualified inbound pipeline grew from 32 to 48 leads.',
+          },
+          {
+            id: 'c3',
+            factor: 'Discounting Pressure in SMB Segment',
+            variance: '-20% drag',
+            weightPct: 20,
+            trend: 'down',
+            detail: 'Sales reps offered average 12% discounts to close 6 SMB deals before month-end.',
+          },
+        ],
+        fixRecommendation: {
+          title: 'Lock In 14 Pending Enterprise Proposals',
+          actionType: 'route',
+          route: 'sales-crm',
+          actionOwner: 'Sales Lead',
+          expectedRecovery: '+₹8.5L',
+          step1: 'Review 14 enterprise proposals in Negotiation stage with contract value > ₹1.5L.',
+          step2: 'Offer standard 5% discount cap on all contracts under ₹2L to protect gross margin.',
+          step3: 'Schedule CEO closing calls for top 3 strategic accounts before Friday.',
+          ctaLabel: 'Open Sales Pipeline',
+        },
+      },
+      'kpi-profit': {
+        kpiId: 'kpi-profit',
+        kpiLabel: 'Net Profit (EBITDA)',
+        currentValue: formatCurrency(kpiSnapshot.netProfit, currency),
+        prevValue: formatCurrency(760000, currency),
+        change: '+13.4%',
+        isPositive: true,
+        question: 'Why did Net Profit grow by +13.4% to ₹8.62L?',
+        primaryCause: {
+          factor: 'High Operating Leverage on Digital Services',
+          variance: '+13.4%',
+          impactAmount: '+₹1.02L',
+          severity: 'medium',
+          description: 'Fixed infrastructure and hosting costs remained flat while revenue expanded 14.2%, lifting net margins to 22.4%.',
+        },
+        contributors: [
+          {
+            id: 'p1',
+            factor: 'High Gross Margin on Services (82%)',
+            variance: '+55% contribution',
+            weightPct: 55,
+            trend: 'up',
+            detail: 'COGS decreased to 18% of revenue due to automated client onboarding sequences.',
+          },
+          {
+            id: 'p2',
+            factor: 'Marketing CAC Efficiency',
+            variance: '+30% contribution',
+            weightPct: 30,
+            trend: 'up',
+            detail: 'Meta and Google Ads CAC dropped from ₹4,200 to ₹3,450 per closed deal.',
+          },
+        ],
+        fixRecommendation: {
+          title: 'Audit Software Subscriptions for Further Margin Gain',
+          actionType: 'task',
+          actionOwner: 'Operations Lead',
+          expectedRecovery: '+₹65,000/mo',
+          step1: 'Identify 4 unused SaaS seat licenses across marketing and analytics tools.',
+          step2: 'Cancel 2 redundant testing staging servers.',
+          step3: 'Lock in annual vendor discounts on core cloud hosting.',
+          ctaLabel: 'Review Expense Leaks',
+        },
+      },
+      'kpi-cash': {
+        kpiId: 'kpi-cash',
+        kpiLabel: 'Cash Runway Balance',
+        currentValue: formatCurrency(kpiSnapshot.cashBalance, currency),
+        prevValue: formatCurrency(4450000, currency),
+        change: '-6.0%',
+        isPositive: false,
+        question: 'Why did Cash Runway Balance drop by -6.0% this month?',
+        primaryCause: {
+          factor: 'Delayed Client Collections (>30 Days Overdue)',
+          variance: '-₹2.7L reserve drop',
+          impactAmount: '-₹4.33L overdue',
+          severity: 'critical',
+          description: 'Overdue receivables spiked from ₹3.2L to ₹4.33L, delaying anticipated cash inflows from 4 enterprise accounts.',
+        },
+        contributors: [
+          {
+            id: 'k1',
+            factor: 'Uncollected Invoices >30 Days',
+            variance: '-65% of cash drag',
+            weightPct: 65,
+            trend: 'down',
+            detail: 'Apex Retail (₹1.85L) and Horizon Labs (₹1.20L) payments are 14+ days overdue.',
+          },
+          {
+            id: 'k2',
+            factor: 'Annual Vendor License Prepayments',
+            variance: '-35% of cash drag',
+            weightPct: 35,
+            trend: 'down',
+            detail: 'One-time ₹1.8L annual server hosting renewal was debited on Aug 5.',
+          },
+        ],
+        fixRecommendation: {
+          title: 'Trigger 1-Click Executive WhatsApp Collections',
+          actionType: 'whatsapp',
+          actionOwner: 'CEO / Finance',
+          expectedRecovery: '+₹4.33L Cash',
+          step1: 'Open Follow-up Recovery Center to send calibrated WhatsApp reminders to Apex Retail.',
+          step2: 'Contact finance lead at Horizon Labs with updated statement of account.',
+          step3: 'Implement 2% prompt-payment discount on net-15 terms for new enterprise deals.',
+          ctaLabel: 'Open Follow-up Recovery',
+        },
+      },
+      'kpi-rec': {
+        kpiId: 'kpi-rec',
+        kpiLabel: 'Overdue Receivables',
+        currentValue: formatCurrency(kpiSnapshot.overdueReceivables, currency),
+        prevValue: formatCurrency(320000, currency),
+        change: '+35.3%',
+        isPositive: false,
+        question: 'Why did Overdue Receivables spike +35.3% to ₹4.33L?',
+        primaryCause: {
+          factor: 'Lack of Automated Day-7 & Day-14 Payment Reminders',
+          variance: '+₹1.13L jump',
+          impactAmount: '₹4.33L Total',
+          severity: 'critical',
+          description: 'Invoices were issued without automated milestone notifications or integrated UPI/bank payment links.',
+        },
+        contributors: [
+          {
+            id: 'r1',
+            factor: 'No Multi-Channel Collection Cadence',
+            variance: '+60% contribution',
+            weightPct: 60,
+            trend: 'down',
+            detail: 'Accounts team relied exclusively on manual emails rather than automated WhatsApp sequences.',
+          },
+          {
+            id: 'r2',
+            factor: 'Extended Enterprise Payment Cycles',
+            variance: '+40% contribution',
+            weightPct: 40,
+            trend: 'down',
+            detail: 'Average days sales outstanding (DSO) lengthened from 38 to 47 days.',
+          },
+        ],
+        fixRecommendation: {
+          title: 'Activate Automated Invoice Recovery Playbook',
+          actionType: 'route',
+          route: 'follow-ups',
+          actionOwner: 'Finance Team',
+          expectedRecovery: '+₹4.33L',
+          step1: 'Send payment reminder to Apex Retail (₹1.85L) with instant bank transfer link.',
+          step2: 'Follow up with Horizon Labs (₹1.20L) accounts department via executive WhatsApp.',
+          step3: 'Enable automatic payment reminder triggers on Day 7, 14, and 21.',
+          ctaLabel: 'Recover Overdue Invoices',
+        },
+      },
+    };
+
+    const diagnostic = diagnosticMap[kpiId] || {
+      kpiId: kpiId,
+      kpiLabel: 'Selected KPI Metric',
+      currentValue: 'Active Metric',
+      prevValue: 'Previous Period',
+      change: '+5.2%',
+      isPositive: true,
+      question: 'What is the root cause behind this performance velocity?',
+      primaryCause: {
+        factor: 'Consistent Pipeline Velocity',
+        variance: '+5.2%',
+        severity: 'medium',
+        description: 'Steady conversion across mid-funnel stages with positive velocity.',
+      },
+      contributors: [
+        {
+          id: 'gen1',
+          factor: 'Sales Team Quota Attainment',
+          variance: '+60% contribution',
+          weightPct: 60,
+          trend: 'up',
+          detail: 'Sales reps achieved 110% of monthly milestone targets.',
+        },
+      ],
+      fixRecommendation: {
+        title: 'Maintain Current Execution Velocity',
+        actionType: 'task',
+        actionOwner: 'CEO / Operations',
+        expectedRecovery: '+₹2.5L',
+        step1: 'Review daily follow-up queue across all deals over ₹1 Lakh.',
+        step2: 'Maintain weekly pipeline review cadence with sales leads.',
+        step3: 'Monitor gross margins to ensure pricing integrity is maintained.',
+        ctaLabel: 'View Growth Plan',
+      },
+    };
+
+    setSelectedWhyDiagnostic(diagnostic);
+    setIsWhyModalOpen(true);
+  };
+
+  const handleActionClick = (actionId: string, feedbackType: string) => {
+    setActiveActionFeedback((prev) => ({
+      ...prev,
+      [actionId]: feedbackType,
+    }));
+    setTimeout(() => {
+      setActiveActionFeedback((prev) => {
+        const next = { ...prev };
+        delete next[actionId];
+        return next;
+      });
+    }, 2500);
+  };
 
   const kpiCards = [
     {
@@ -75,6 +353,7 @@ export const CEOCommandCenterView: React.FC = () => {
       sparkline: [30, 32, 34, 38.5],
       icon: DollarSign,
       actionRoute: 'revenue',
+      dataTrustTag: 'ACTUAL' as const,
       quarterlyProgress: {
         current: 12630000,
         target: quarterlyRevenueTarget,
@@ -92,6 +371,7 @@ export const CEOCommandCenterView: React.FC = () => {
       sparkline: [7.2, 7.8, 8.6, 8.62],
       icon: TrendingUp,
       actionRoute: 'finance',
+      dataTrustTag: 'CALCULATED' as const,
       quarterlyProgress: {
         current: 2840000,
         target: quarterlyProfitTarget,
@@ -102,13 +382,14 @@ export const CEOCommandCenterView: React.FC = () => {
     {
       id: 'kpi-margin',
       label: 'Net Profit Margin',
-      value: `${kpiSnapshot.netMarginPct.toFixed(1)}%`,
+      value: `${(kpiSnapshot?.netMarginPct ?? 0).toFixed(1)}%`,
       prevValue: '21.5%',
       change: '+0.9%',
       isPositive: true,
       sparkline: [20, 21, 21.5, 22.4],
       icon: TrendingUp,
       actionRoute: 'finance',
+      dataTrustTag: 'CALCULATED' as const,
     },
     {
       id: 'kpi-cash',
@@ -120,6 +401,7 @@ export const CEOCommandCenterView: React.FC = () => {
       sparkline: [46, 45, 44.5, 41.8],
       icon: Wallet,
       actionRoute: 'cash-flow',
+      dataTrustTag: 'ACTUAL' as const,
     },
     {
       id: 'kpi-cust',
@@ -131,6 +413,7 @@ export const CEOCommandCenterView: React.FC = () => {
       sparkline: [115, 119, 122, 128],
       icon: Users,
       actionRoute: 'customers',
+      dataTrustTag: 'ACTUAL' as const,
     },
     {
       id: 'kpi-leads',
@@ -142,6 +425,7 @@ export const CEOCommandCenterView: React.FC = () => {
       sparkline: [32, 36, 41, 48],
       icon: Briefcase,
       actionRoute: 'leads',
+      dataTrustTag: 'ACTUAL' as const,
       quarterlyProgress: {
         current: 132,
         target: quarterlyLeadsTarget,
@@ -160,6 +444,7 @@ export const CEOCommandCenterView: React.FC = () => {
       sparkline: [10, 11.5, 12.8, 15.3],
       icon: Layers,
       actionRoute: 'sales-crm',
+      dataTrustTag: 'CALCULATED' as const,
       quarterlyProgress: {
         current: 38200000,
         target: quarterlyPipelineTarget,
@@ -177,6 +462,7 @@ export const CEOCommandCenterView: React.FC = () => {
       sparkline: [2.5, 2.9, 3.2, 4.33],
       icon: AlertTriangle,
       actionRoute: 'finance',
+      dataTrustTag: 'ACTUAL' as const,
     },
   ];
 
@@ -189,30 +475,100 @@ export const CEOCommandCenterView: React.FC = () => {
             <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
               Good Morning, {currentOrg.ceoName || 'Rajesh'}
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-              LIVE COMMAND
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+              REVENUE COMMAND CENTER
             </span>
           </div>
           <p className="text-xs md:text-sm text-slate-500 mt-1">
-            Here is your strategic executive summary, leak diagnosis, and priority actions today.
+            See your business → Find your leaks → Discover opportunities → Take high-leverage action.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <button
-            onClick={() => setIsBriefingOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
+            onClick={() => setIsGoalPlannerOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-xs transition-all cursor-pointer uppercase tracking-wider"
           >
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>Generate Morning Briefing</span>
+            <Zap className="w-4 h-4 fill-slate-950" />
+            <span>Make ₹10L Goal Planner</span>
           </button>
 
           <button
-            onClick={() => setActiveView('ai-advisor')}
-            className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 shadow-xs transition-colors"
+            onClick={() => setIsBriefingOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
           >
-            Consult AI Advisor
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>Morning Briefing</span>
           </button>
+        </div>
+      </div>
+
+      {/* 6-BOX HERO COMMAND GRID: Key Revenue Diagnostics */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="p-3.5 rounded-xl bg-slate-900 text-white border border-slate-800 flex flex-col justify-between">
+          <div className="text-[10px] font-bold uppercase text-slate-400">Total Revenue MTD</div>
+          <div className="text-xl font-black text-amber-400 font-mono-numeric mt-1">
+            {formatCurrency(kpiSnapshot.revenueMTD, currency)}
+          </div>
+          <div className="text-[9px] text-emerald-400 mt-1 font-bold">+14.2% vs target [ACTUAL]</div>
+        </div>
+
+        <div className="p-3.5 rounded-xl bg-white border border-slate-200 flex flex-col justify-between">
+          <div className="text-[10px] font-bold uppercase text-slate-500">Pipeline Value</div>
+          <div className="text-xl font-black text-slate-900 font-mono-numeric mt-1">
+            {formatCurrency(kpiSnapshot.pipelineValue, currency)}
+          </div>
+          <div className="text-[9px] text-slate-500 mt-1 font-medium">18 active deals [CALCULATED]</div>
+        </div>
+
+        <div
+          onClick={() => setActiveView('follow-ups')}
+          className="p-3.5 rounded-xl bg-rose-50/70 border border-rose-200 hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between group"
+        >
+          <div className="text-[10px] font-bold uppercase text-rose-700 flex items-center justify-between">
+            <span>Missed Follow-ups</span>
+            <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+          </div>
+          <div className="text-xl font-black text-rose-700 font-mono-numeric mt-1">
+            47 Leads
+          </div>
+          <div className="text-[9px] text-rose-600 mt-1 font-bold">₹8.4L at risk [ACTUAL]</div>
+        </div>
+
+        <div
+          onClick={() => setActiveView('revenue-leakage')}
+          className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 hover:border-amber-300 transition-all cursor-pointer flex flex-col justify-between group"
+        >
+          <div className="text-[10px] font-bold uppercase text-amber-800 flex items-center justify-between">
+            <span>Revenue Leaking</span>
+            <Flame className="w-3 h-3 text-amber-600" />
+          </div>
+          <div className="text-xl font-black text-amber-900 font-mono-numeric mt-1">
+            {formatCurrency(kpiSnapshot.leakage.totalLeakage, currency)}
+          </div>
+          <div className="text-[9px] text-amber-800 mt-1 font-bold">5 critical leaks [CALCULATED]</div>
+        </div>
+
+        <div
+          onClick={() => setActiveView('opportunities')}
+          className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 hover:border-emerald-300 transition-all cursor-pointer flex flex-col justify-between group"
+        >
+          <div className="text-[10px] font-bold uppercase text-emerald-800 flex items-center justify-between">
+            <span>Upsell Potential</span>
+            <Sparkles className="w-3 h-3 text-emerald-600" />
+          </div>
+          <div className="text-xl font-black text-emerald-800 font-mono-numeric mt-1">
+            {formatCurrency(1850000, currency)}
+          </div>
+          <div className="text-[9px] text-emerald-700 mt-1 font-bold">40 VIP accounts [ESTIMATE]</div>
+        </div>
+
+        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+          <div className="text-[10px] font-bold uppercase text-slate-500">Net Margin</div>
+          <div className="text-xl font-black text-slate-900 font-mono-numeric mt-1">
+            {(kpiSnapshot?.netMarginPct ?? 0).toFixed(1)}%
+          </div>
+          <div className="text-[9px] text-emerald-700 mt-1 font-bold">+0.9% MoM [CALCULATED]</div>
         </div>
       </div>
 
@@ -309,12 +665,17 @@ export const CEOCommandCenterView: React.FC = () => {
         </div>
       </div>
 
-      {/* TOP 8 KPI CARDS */}
+      {/* TOP 8 KPI CARDS WITH [WHY?] TRIGGER & DYNAMIC BORDERS */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Executive Key Performance Indicators
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Executive Key Performance Indicators
+            </h2>
+            <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+              Click [WHY?] for AI Root-Cause
+            </span>
+          </div>
           <span className="text-xs text-slate-400">MTD vs Previous Period</span>
         </div>
 
@@ -331,10 +692,11 @@ export const CEOCommandCenterView: React.FC = () => {
               quarterLabel={kpi.quarterlyProgress?.quarterLabel}
               prevValue={kpi.prevValue}
               change={kpi.change}
-              deltaPct={(kpi as any).deltaPct}
               isPositive={kpi.isPositive}
               currency={currency}
               icon={kpi.icon}
+              dataTrustTag={kpi.dataTrustTag}
+              onWhyClick={() => handleOpenWhy(kpi.id)}
               actionRoute={kpi.actionRoute}
               onClick={() => setActiveView(kpi.actionRoute)}
             />
@@ -364,7 +726,7 @@ export const CEOCommandCenterView: React.FC = () => {
             <div>
               <span className="text-slate-500">Pace: </span>
               <strong className="text-emerald-700 font-mono-numeric">
-                {kpiSnapshot.revenueAchievementPct.toFixed(1)}%
+                {(kpiSnapshot?.revenueAchievementPct ?? 0).toFixed(1)}%
               </strong>
             </div>
           </div>
@@ -467,7 +829,7 @@ export const CEOCommandCenterView: React.FC = () => {
                 <YAxis
                   stroke="#94a3b8"
                   tick={{ fontSize: 11 }}
-                  tickFormatter={(val) => `₹${(val / 100000).toFixed(0)}L`}
+                  tickFormatter={(val) => `₹${(((val ?? 0) / 100000) || 0).toFixed(0)}L`}
                 />
                 <Tooltip
                   contentStyle={{
@@ -493,7 +855,7 @@ export const CEOCommandCenterView: React.FC = () => {
                   name="Target"
                   stroke="#d97706"
                   strokeWidth={2}
-                  strokeDasharray="4 4"
+                  dashArray="4 4"
                 />
                 <Line
                   type="monotone"
@@ -582,79 +944,7 @@ export const CEOCommandCenterView: React.FC = () => {
         </div>
       </div>
 
-      {/* SALES FUNNEL & BOTTLENECK CALLOUT */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Sales Conversion Architecture
-            </span>
-            <h3 className="text-base font-bold text-slate-900">End-to-End Pipeline Funnel</h3>
-          </div>
-          <button
-            onClick={() => setActiveView('sales-crm')}
-            className="text-xs text-amber-800 hover:text-amber-900 font-bold flex items-center gap-1"
-          >
-            Open Sales CRM & Leaderboard →
-          </button>
-        </div>
-
-        {/* Funnel Steps */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {kpiSnapshot.salesFunnel.map((stage, idx) => (
-            <div
-              key={stage.id}
-              className={`p-3.5 rounded-xl border relative flex flex-col justify-between ${
-                stage.isBottleneck
-                  ? 'bg-rose-50/50 border-rose-300'
-                  : 'bg-slate-50/80 border-slate-200/80'
-              }`}
-            >
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                  Stage {idx + 1}
-                </div>
-                <div className="text-xs font-bold text-slate-800">{stage.name}</div>
-                <div className="text-xl font-black text-slate-900 font-mono-numeric mt-2">
-                  {stage.count}
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-slate-200/80 mt-3 flex items-center justify-between text-[11px]">
-                <span className="text-slate-500">Conv:</span>
-                <span
-                  className={`font-bold font-mono-numeric ${
-                    stage.isBottleneck ? 'text-rose-600' : 'text-emerald-600'
-                  }`}
-                >
-                  {stage.conversionToNext}%
-                </span>
-              </div>
-
-              {stage.isBottleneck && (
-                <div className="absolute -top-2 right-2 px-1.5 py-0.2 bg-rose-600 text-white font-black text-[9px] rounded uppercase tracking-wider shadow-2xs">
-                  Bottleneck
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* AI Bottleneck Diagnosis Box */}
-        <div className="mt-4 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-          <div className="text-xs">
-            <strong className="text-rose-800 font-bold">
-              AI Bottleneck Identified: {kpiSnapshot.biggestBottleneck.stage}
-            </strong>
-            <p className="text-slate-700 mt-1 leading-relaxed">
-              {kpiSnapshot.biggestBottleneck.message}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* TOP 5 CEO ACTIONS TODAY & REVENUE LEAKAGE */}
+      {/* TOP 5 CEO ACTIONS TODAY WITH ACTIONABLE BUTTONS */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left: Top 5 Actions */}
         <div className="lg:col-span-7 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
@@ -662,7 +952,7 @@ export const CEOCommandCenterView: React.FC = () => {
             <div className="flex items-center gap-2">
               <Flame className="w-4 h-4 text-amber-600 animate-pulse" />
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">
-                Top 5 High-Leverage CEO Actions
+                Top 5 CEO Action Items Today
               </h3>
             </div>
             <button
@@ -676,6 +966,7 @@ export const CEOCommandCenterView: React.FC = () => {
           <div className="space-y-3">
             {actions.slice(0, 5).map((action) => {
               const isDone = action.status === 'Completed';
+              const feedback = activeActionFeedback[action.id];
 
               return (
                 <div
@@ -708,25 +999,62 @@ export const CEOCommandCenterView: React.FC = () => {
                       </p>
                     </div>
 
-                    <button
-                      onClick={() =>
-                        updateActionStatus(action.id, isDone ? 'Pending' : 'Completed')
-                      }
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-all ${
-                        isDone
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          : 'bg-slate-900 hover:bg-slate-800 text-white shadow-2xs'
-                      }`}
-                    >
-                      {isDone ? 'Completed ✓' : 'Take Action'}
-                    </button>
+                    <div className="text-right shrink-0">
+                      <span className="text-xs font-bold text-emerald-700 font-mono-numeric block">
+                        +{formatCurrency(action.expectedImpactAmount, currency)}
+                      </span>
+                      <span className="text-[9px] text-slate-400">Impact</span>
+                    </div>
                   </div>
 
-                  <div className="mt-3 pt-2.5 border-t border-slate-200/70 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-500">Expected Financial Impact:</span>
-                    <span className="font-bold text-emerald-700 font-mono-numeric">
-                      +{formatCurrency(action.expectedImpactAmount, currency)}
-                    </span>
+                  {/* 4 Action Triggers: [DO THIS NOW], [AUTO-EXECUTE], [ASSIGN TEAM], [REMIND ME] */}
+                  <div className="mt-3 pt-2.5 border-t border-slate-200/70 flex items-center justify-between gap-2 flex-wrap">
+                    {feedback ? (
+                      <div className="text-xs font-bold text-emerald-700 flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>{feedback}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateActionStatus(action.id, isDone ? 'Pending' : 'Completed');
+                            handleActionClick(action.id, 'Executed successfully!');
+                          }}
+                          className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-900 hover:bg-slate-800 text-white transition-all shadow-2xs"
+                        >
+                          {isDone ? 'Mark Pending' : '⚡ DO THIS NOW'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleActionClick(action.id, 'AI Auto-Execution Triggered!')}
+                          className="px-2.5 py-1 rounded-md text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all flex items-center gap-1"
+                        >
+                          <Sparkles className="w-2.5 h-2.5 text-amber-600" />
+                          <span>Auto-Execute</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleActionClick(action.id, `Assigned to ${action.owner} with notification`)}
+                          className="px-2.5 py-1 rounded-md text-[10px] font-medium text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 transition-all flex items-center gap-1"
+                        >
+                          <Users className="w-2.5 h-2.5 text-slate-500" />
+                          <span>Assign Team</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleActionClick(action.id, 'Reminder scheduled for 2:00 PM')}
+                          className="px-2.5 py-1 rounded-md text-[10px] font-medium text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 transition-all flex items-center gap-1"
+                        >
+                          <Bell className="w-2.5 h-2.5 text-slate-500" />
+                          <span>Remind Me</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -800,69 +1128,35 @@ export const CEOCommandCenterView: React.FC = () => {
                   {formatCurrency(kpiSnapshot.leakage.pricingLeakage.amount, currency)}
                 </span>
               </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-bold text-slate-800">Expense Anomalies</div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">
-                    {kpiSnapshot.leakage.expenseLeakage.description}
-                  </div>
-                </div>
-                <span className="text-xs font-bold text-rose-600 font-mono-numeric">
-                  {formatCurrency(kpiSnapshot.leakage.expenseLeakage.amount, currency)}
-                </span>
-              </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 mt-4">
+          <div className="pt-4 border-t border-slate-100 mt-4 flex items-center gap-2">
             <button
-              onClick={() => setActiveView('opportunities')}
-              className="w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-bold text-white flex items-center justify-center gap-2 shadow-xs transition-colors"
+              onClick={() => setActiveView('follow-ups')}
+              className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-xs font-black text-slate-950 flex items-center justify-center gap-2 shadow-xs transition-colors uppercase tracking-wider"
             >
-              <span>Explore Leakage Recovery Playbooks</span>
+              <span>Follow-up Recovery Center</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* STRATEGIC DECISION MATRIX: WHAT IS GOING WELL VS WHAT IS GOING WRONG */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div className="p-5 rounded-2xl bg-emerald-50/60 border border-emerald-200">
-          <div className="flex items-center gap-2 mb-3">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-              What Is Going Well
-            </h3>
-          </div>
-          <ul className="space-y-2">
-            {kpiSnapshot.whatIsGoingWell.map((item, idx) => (
-              <li key={idx} className="text-xs text-slate-700 flex items-start gap-2">
-                <span className="text-emerald-600 font-bold">•</span>
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {/* AI Root-Cause 'Why?' Modal */}
+      <AIWhyAnalysisModal
+        isOpen={isWhyModalOpen}
+        onClose={() => setIsWhyModalOpen(false)}
+        diagnostic={selectedWhyDiagnostic}
+        currency={currency}
+      />
 
-        <div className="p-5 rounded-2xl bg-rose-50/60 border border-rose-200">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-4 h-4 text-rose-600" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-rose-800">
-              What Is Going Wrong / Critical Risks
-            </h3>
-          </div>
-          <ul className="space-y-2">
-            {kpiSnapshot.whatIsGoingWrong.map((item, idx) => (
-              <li key={idx} className="text-xs text-slate-700 flex items-start gap-2">
-                <span className="text-rose-600 font-bold">•</span>
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      {/* Revenue Goal Planner Modal */}
+      <RevenueGoalPlannerModal
+        isOpen={isGoalPlannerOpen}
+        onClose={() => setIsGoalPlannerOpen(false)}
+        currency={currency}
+      />
     </div>
   );
 };

@@ -11,7 +11,7 @@ import { useApp } from '../../context/AppContext';
 import { formatCurrency } from '../../lib/formatters';
 
 export const OpportunitiesView: React.FC = () => {
-  const { opportunities, currency, setActiveView } = useApp();
+  const { opportunities, currency, setActiveView, convertOpportunityToTask } = useApp();
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -33,6 +33,7 @@ export const OpportunitiesView: React.FC = () => {
 
         <div className="flex items-center gap-2">
           <button
+            id="btn-view-all-action-tasks"
             onClick={() => setActiveView('tasks')}
             className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-colors"
           >
@@ -46,6 +47,7 @@ export const OpportunitiesView: React.FC = () => {
         {opportunities.map((opp) => (
           <div
             key={opp.id}
+            id={`opp-card-${opp.id}`}
             className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-4"
           >
             <div>
@@ -54,7 +56,7 @@ export const OpportunitiesView: React.FC = () => {
                   {opp.category}
                 </span>
                 <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-mono-numeric">
-                  +{formatCurrency(opp.estimatedUpsideAmount, currency)}
+                  +{formatCurrency(opp.estimatedUpsideAmount || opp.potentialRevenue || 0, currency)}
                 </span>
               </div>
 
@@ -67,8 +69,9 @@ export const OpportunitiesView: React.FC = () => {
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
               <span className="text-xs text-slate-500">Effort: <strong className="text-slate-800">{opp.effortLevel}</strong></span>
               <button
-                onClick={() => alert(`Playbook for "${opp.title}" queued into CEO Action board.`)}
-                className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs"
+                id={`btn-execute-playbook-${opp.id}`}
+                onClick={() => convertOpportunityToTask(opp.id)}
+                className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
               >
                 <span>Execute Playbook</span>
                 <ArrowRight className="w-3 h-3" />

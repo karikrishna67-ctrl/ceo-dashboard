@@ -15,7 +15,7 @@ import { useApp } from '../../context/AppContext';
 import { formatCurrency, formatPercent } from '../../lib/formatters';
 
 export const FinanceView: React.FC = () => {
-  const { kpiSnapshot, invoices, currency, updateInvoiceStatus, setActiveView } = useApp();
+  const { kpiSnapshot, invoices, currency, updateInvoiceStatus, setActiveView, addToast } = useApp();
   const [activeTab, setActiveTab] = useState<'PL' | 'RECEIVABLES' | 'MARGINS'>('RECEIVABLES');
 
   const overdueInvoices = invoices.filter((i) => i.status === 'Overdue');
@@ -142,11 +142,12 @@ export const FinanceView: React.FC = () => {
                     <td className="py-3.5 px-3 text-right font-sans">
                       {isOverdue && (
                         <button
+                          id={`btn-dispatch-notice-${inv.id}`}
                           onClick={() => {
-                            alert(`Automated WhatsApp payment link dispatched to ${inv.customerName}!`);
+                            addToast(`Automated WhatsApp & Email payment notice dispatched to ${inv.customerName}!`, 'info', 'Notice Dispatched');
                             updateInvoiceStatus(inv.id, 'Paid');
                           }}
-                          className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs inline-flex items-center gap-1 shadow-2xs transition-colors"
+                          className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs inline-flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
                         >
                           <Send className="w-3 h-3" />
                           <span>Dispatch Notice</span>
@@ -154,8 +155,9 @@ export const FinanceView: React.FC = () => {
                       )}
                       {!isOverdue && !isPaid && (
                         <button
+                          id={`btn-mark-paid-${inv.id}`}
                           onClick={() => updateInvoiceStatus(inv.id, 'Paid')}
-                          className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
+                          className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
                         >
                           Mark Paid
                         </button>

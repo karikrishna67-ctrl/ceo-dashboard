@@ -36,6 +36,8 @@ export const RevenueView: React.FC = () => {
   const quarterlyMrrTarget = 8500000;
   const quarterlyOneTimeTarget = 4000000;
 
+  const arpu = kpiSnapshot.activeCustomers > 0 ? Math.round(kpiSnapshot.mrr / kpiSnapshot.activeCustomers) : 30078;
+
   const revenueByProduct = [
     { name: 'Enterprise SaaS Suite', revenue: 2150000, pct: '55.8%', color: '#0f172a' },
     { name: 'Cloud Integration & AI Bots', revenue: 980000, pct: '25.5%', color: '#d97706' },
@@ -51,8 +53,8 @@ export const RevenueView: React.FC = () => {
   ];
 
   const recurringVsOneTime = [
-    { name: 'Recurring Revenue (MRR / ARR)', value: 2620000, color: '#059669' },
-    { name: 'One-Time Setup & Projects', value: 1230000, color: '#d97706' },
+    { name: 'Recurring Revenue (MRR / ARR)', value: kpiSnapshot.mrr, color: '#059669' },
+    { name: 'One-Time Setup & Projects', value: Math.max(0, kpiSnapshot.revenueMTD - kpiSnapshot.mrr), color: '#d97706' },
   ];
 
   return (
@@ -99,12 +101,12 @@ export const RevenueView: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPIProgressCard
           label="Monthly Recurring Revenue (MRR)"
-          value={formatCurrency(2620000, currency)}
-          current={7860000}
+          value={formatCurrency(kpiSnapshot.mrr, currency)}
+          current={kpiSnapshot.mrr * 3}
           target={quarterlyMrrTarget}
           quarterLabel="Q3 MRR Target"
           change="+18.5%"
-          prevValue={formatCurrency(2210000, currency)}
+          prevValue={formatCurrency(Math.round(kpiSnapshot.mrr * 0.85), currency)}
           isPositive={true}
           currency={currency}
           icon={CreditCard}
@@ -112,8 +114,8 @@ export const RevenueView: React.FC = () => {
 
         <KPIProgressCard
           label="One-Time / Implementation"
-          value={formatCurrency(1230000, currency)}
-          current={3690000}
+          value={formatCurrency(Math.max(0, kpiSnapshot.revenueMTD - kpiSnapshot.mrr), currency)}
+          current={Math.max(0, kpiSnapshot.revenueMTD - kpiSnapshot.mrr) * 3}
           target={quarterlyOneTimeTarget}
           quarterLabel="Q3 Setup Target"
           change="+8.2%"
@@ -125,12 +127,12 @@ export const RevenueView: React.FC = () => {
 
         <KPIProgressCard
           label="Average Revenue Per User (ARPU)"
-          value={formatCurrency(30078, currency)}
-          current={30078}
+          value={formatCurrency(arpu, currency)}
+          current={arpu}
           target={35000}
           quarterLabel="Q3 ARPU Goal"
           change="+12.0%"
-          prevValue={formatCurrency(26850, currency)}
+          prevValue={formatCurrency(Math.round(arpu * 0.89), currency)}
           isPositive={true}
           currency={currency}
           icon={DollarSign}

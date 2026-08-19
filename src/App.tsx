@@ -24,6 +24,7 @@ import { AlertsView } from './components/views/AlertsView';
 import { TasksView } from './components/views/TasksView';
 import { ReportsView } from './components/views/ReportsView';
 import { TeamView } from './components/views/TeamView';
+import { FollowUpRecoveryView } from './components/views/FollowUpRecoveryView';
 import { IntegrationsView } from './components/views/IntegrationsView';
 import { SettingsView } from './components/views/SettingsView';
 
@@ -32,8 +33,10 @@ import { DailyBriefingModal } from './components/modals/DailyBriefingModal';
 import { OnboardingWizardModal } from './components/modals/OnboardingWizardModal';
 import { DataImportModal } from './components/modals/DataImportModal';
 import { CommandPaletteModal } from './components/modals/CommandPaletteModal';
+import { ToastContainer } from './components/common/ToastContainer';
 
 function MainAppLayout() {
+
   const { activeView } = useApp();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -51,6 +54,8 @@ function MainAppLayout() {
         return <SalesCRMView />;
       case 'leads':
         return <LeadsView />;
+      case 'follow-ups':
+        return <FollowUpRecoveryView />;
       case 'customers':
         return <CustomersView />;
       case 'marketing':
@@ -109,6 +114,7 @@ function MainAppLayout() {
       <DailyBriefingModal />
       <OnboardingWizardModal />
       <DataImportModal />
+      <ToastContainer />
     </div>
   );
 }

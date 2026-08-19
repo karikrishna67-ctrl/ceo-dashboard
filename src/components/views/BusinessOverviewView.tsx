@@ -32,13 +32,15 @@ export const BusinessOverviewView: React.FC = () => {
   const quarterlyTarget = (currentOrg?.settings?.monthlyRevenueTarget || 5000000) * 3;
 
   const yoyComparison = [
-    { metric: 'Gross Revenue', fy25: 2950000, fy26: 3850000, growth: '+30.5%' },
-    { metric: 'Gross Profit', fy25: 2360000, fy26: 3157000, growth: '+33.8%' },
-    { metric: 'Net Profit (EBITDA)', fy25: 590000, fy26: 862400, growth: '+46.2%' },
-    { metric: 'Active Customer Base', fy25: 98, fy26: 128, growth: '+30.6%' },
-    { metric: 'Average Deal Size', fy25: 110000, fy26: 145000, growth: '+31.8%' },
+    { metric: 'Gross Revenue', fy25: 2950000, fy26: kpiSnapshot.revenueMTD, growth: '+30.5%' },
+    { metric: 'Gross Profit', fy25: 2360000, fy26: kpiSnapshot.grossProfit, growth: '+33.8%' },
+    { metric: 'Net Profit (EBITDA)', fy25: 590000, fy26: kpiSnapshot.netProfit, growth: '+46.2%' },
+    { metric: 'Active Customer Base', fy25: 98, fy26: kpiSnapshot.activeCustomers, growth: '+30.6%' },
+    { metric: 'Average Deal Size', fy25: 110000, fy26: kpiSnapshot.averageDealSize, growth: '+31.8%' },
     { metric: 'CAC Payback Period', fy25: '3.8 mos', fy26: '2.4 mos', growth: '-36.8% (Faster)' },
   ];
+
+  const ltvCacRatio = kpiSnapshot.blendedCAC > 0 ? (kpiSnapshot.avgLTV / kpiSnapshot.blendedCAC).toFixed(1) : '20.1';
 
   const businessModelStats = [
     { label: 'Business Model', value: currentOrg.businessModel, desc: 'Enterprise SaaS & Implementation' },
@@ -48,12 +50,12 @@ export const BusinessOverviewView: React.FC = () => {
   ];
 
   const unitEconomics = [
-    { label: 'Customer Lifetime Value (LTV)', value: formatCurrency(285000, currency), benchmark: '₹2.5L sector' },
-    { label: 'Customer Acquisition Cost (CAC)', value: formatCurrency(14200, currency), benchmark: '₹22K sector' },
-    { label: 'LTV : CAC Ratio', value: '20.1x', benchmark: '> 3.0x Healthy', highlight: true },
-    { label: 'Monthly Churn Rate', value: '1.4%', benchmark: '< 2.0% World Class' },
+    { label: 'Customer Lifetime Value (LTV)', value: formatCurrency(kpiSnapshot.avgLTV, currency), benchmark: '₹2.5L sector' },
+    { label: 'Customer Acquisition Cost (CAC)', value: formatCurrency(kpiSnapshot.blendedCAC, currency), benchmark: '₹22K sector' },
+    { label: 'LTV : CAC Ratio', value: `${ltvCacRatio}x`, benchmark: '> 3.0x Healthy', highlight: true },
+    { label: 'Monthly Churn Rate', value: `${kpiSnapshot.churnRatePct.toFixed(1)}%`, benchmark: '< 2.0% World Class' },
     { label: 'Net Revenue Retention (NRR)', value: '118.5%', benchmark: '> 110% Strong' },
-    { label: 'Gross Margin', value: '82.0%', benchmark: '> 75% Target' },
+    { label: 'Gross Margin', value: `${kpiSnapshot.grossMarginPct.toFixed(1)}%`, benchmark: '> 75% Target' },
   ];
 
   return (

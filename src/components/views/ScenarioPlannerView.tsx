@@ -13,7 +13,7 @@ import { useApp } from '../../context/AppContext';
 import { formatCurrency, formatPercent } from '../../lib/formatters';
 
 export const ScenarioPlannerView: React.FC = () => {
-  const { kpiSnapshot, currency } = useApp();
+  const { kpiSnapshot, currency, addToast } = useApp();
 
   const [priceChangePct, setPriceChangePct] = useState(0);
   const [conversionBoostPct, setConversionBoostPct] = useState(0);
@@ -227,8 +227,9 @@ export const ScenarioPlannerView: React.FC = () => {
           </div>
 
           <button
-            onClick={() => alert('Simulated strategy saved to Executive Scenarios dossier.')}
-            className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors shadow-xs"
+            id="btn-save-scenario"
+            onClick={() => addToast('Simulated strategy saved to Executive Scenarios dossier.', 'success')}
+            className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
           >
             Save Scenario to Strategy Dossier
           </button>
