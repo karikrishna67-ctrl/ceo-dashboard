@@ -65,6 +65,7 @@ interface IndustryCategorySelectorProps {
   onSelectIndustry: (sector: IndustrySector) => void;
   layout?: 'grid' | 'compact' | 'carousel';
   showDetailsModal?: boolean;
+  externalSearchQuery?: string;
 }
 
 export const IndustryCategorySelector: React.FC<IndustryCategorySelectorProps> = ({
@@ -72,8 +73,11 @@ export const IndustryCategorySelector: React.FC<IndustryCategorySelectorProps> =
   onSelectIndustry,
   layout = 'grid',
   showDetailsModal = true,
+  externalSearchQuery,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [internalSearchQuery, setInternalSearchQuery] = useState('');
+  const searchQuery = externalSearchQuery !== undefined ? externalSearchQuery : internalSearchQuery;
+  const setSearchQuery = setInternalSearchQuery;
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<'ALL' | 'TECH' | 'INDUSTRIAL' | 'COMMERCE' | 'EMERGING'>('ALL');
   const [inspectingSector, setInspectingSector] = useState<IndustrySector | null>(null);
 

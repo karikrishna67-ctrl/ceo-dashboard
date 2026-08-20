@@ -40,9 +40,12 @@ import {
   Eye,
   Sparkles,
   RefreshCw,
+  FileText,
+  Printer,
 } from 'lucide-react';
 import { INDUSTRY_SECTORS, IndustrySector } from '../../data/industrySectors';
 import { useApp } from '../../context/AppContext';
+import { generateIndustryTaxonomyPDF } from '../../utils/industryTaxonomyPdf';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Building2,
@@ -112,13 +115,19 @@ export const SECTOR_GROUPS: SectorGroupDefinition[] = [
 
 interface IndustryReportsExplorerProps {
   onSelectSector?: (sector: IndustrySector) => void;
+  externalSearchQuery?: string;
 }
 
-export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = ({ onSelectSector }) => {
+export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = ({
+  onSelectSector,
+  externalSearchQuery,
+}) => {
   const { currentOrg, setCurrentOrg, addToast } = useApp();
 
   // Search state
-  const [searchQuery, setSearchQuery] = useState('');
+  const [internalSearchQuery, setInternalSearchQuery] = useState('');
+  const searchQuery = externalSearchQuery !== undefined ? externalSearchQuery : internalSearchQuery;
+  const setSearchQuery = setInternalSearchQuery;
 
   // Multi-select filters
   const [selectedSubIndustryCounts, setSelectedSubIndustryCounts] = useState<number[]>([]);
@@ -193,6 +202,8 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
 
   const hasActiveFilters = searchQuery !== '' || selectedSubIndustryCounts.length > 0 || selectedSectorGroups.length > 0;
 
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+
   // Handle Sector Adoption
   const handleAdoptSector = (sector: IndustrySector) => {
     setCurrentOrg((prev) => ({
@@ -201,6 +212,49 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
     }));
     if (onSelectSector) onSelectSector(sector);
     addToast(`Calibrated organizational benchmarks to ${sector.name}`, 'success');
+  };
+
+  // Handle Export Current View PDF
+  const handleExportCurrentViewPDF = () => {
+    if (filteredSectors.length === 0) {
+      addToast('No industry sectors in current view to export', 'warning');
+      return;
+    }
+
+    setIsExportingPdf(true);
+    try {
+      const filterParts: string[] = [];
+      if (searchQuery.trim()) {
+        filterParts.push(`Search: "${searchQuery.trim()}"`);
+      }
+      if (selectedSubIndustryCounts.length > 0) {
+        filterParts.push(`Counts: ${selectedSubIndustryCounts.join(', ')} domains`);
+      }
+      if (selectedSectorGroups.length > 0) {
+        const groupLabels = selectedSectorGroups
+          .map((gid) => SECTOR_GROUPS.find((g) => g.id === gid)?.label)
+          .filter(Boolean);
+        filterParts.push(`Groups: ${groupLabels.join(', ')}`);
+      }
+
+      const filterSummary = filterParts.length > 0 ? filterParts.join(' | ') : 'All 23 Master Domains (Unfiltered)';
+
+      generateIndustryTaxonomyPDF({
+        sectors: filteredSectors,
+        org: currentOrg,
+        filterSummary,
+        reportTitle: hasActiveFilters
+          ? `Industry Classification Dossier (${filteredSectors.length} Filtered Sectors)`
+          : '23-Sector Industry Classification & Benchmark Directory',
+      });
+
+      addToast(`Exported ${filteredSectors.length} industry classifications to PDF for offline executive review`, 'success');
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      addToast('Failed to export PDF document. Please retry.', 'error');
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   return (
@@ -225,8 +279,20 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
           </p>
         </div>
 
-        {/* View Layout Toggle */}
-        <div className="flex items-center gap-2">
+        {/* View Layout Toggle & PDF Export Button */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* PDF Export Button for current view */}
+          <button
+            type="button"
+            onClick={handleExportCurrentViewPDF}
+            disabled={isExportingPdf || filteredSectors.length === 0}
+            className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+            title="Export the currently visible industry classifications and benchmarks as a PDF document"
+          >
+            <FileText className="w-3.5 h-3.5 text-amber-400" />
+            <span>{isExportingPdf ? 'Exporting PDF...' : 'Export View (PDF)'}</span>
+          </button>
+
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
               type="button"

@@ -17,6 +17,7 @@ import {
   DateFilterOption,
   CurrencyCode,
   ToastMessage,
+  SyncedTaxonomyState,
 } from '../types';
 import {
   DEMO_ORG,
@@ -57,6 +58,11 @@ interface AppContextType {
   setSearchQuery: (query: string) => void;
   currency: CurrencyCode;
   setCurrency: (currency: CurrencyCode) => void;
+
+  // Synced Sector Taxonomy & Aggregates
+  syncedTaxonomy: SyncedTaxonomyState | null;
+  syncTaxonomyToDashboard: (state: SyncedTaxonomyState, navigateImmediately?: boolean) => void;
+  clearSyncedTaxonomy: () => void;
 
   // Data Collections
   leads: Lead[];
@@ -152,6 +158,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     dateRange: 'this_month',
     searchQuery: '',
   });
+
+  // Synced Industry Sector & Taxonomy State
+  const [syncedTaxonomy, setSyncedTaxonomy] = useState<SyncedTaxonomyState | null>(null);
+
+  const syncTaxonomyToDashboard = (state: SyncedTaxonomyState, navigateImmediately: boolean = false) => {
+    setSyncedTaxonomy(state);
+    // Also calibrate organization industry if a sector was selected
+    if (state.selectedSectorName && state.selectedSectorName !== currentOrg.industry) {
+      setCurrentOrg((prev) => ({
+        ...prev,
+        industry: state.selectedSectorName,
+      }));
+    }
+    addToast(
+      `Sector benchmarks & aggregate data (${state.totalFilteredSectors} sectors, ${state.totalSubIndustriesCount} domains) synchronized to CEO Command Center.`,
+      'success',
+      'Taxonomy Synced'
+    );
+    if (navigateImmediately) {
+      setActiveView('command-center');
+    }
+  };
+
+  const clearSyncedTaxonomy = () => {
+    setSyncedTaxonomy(null);
+    addToast('Sector benchmark override cleared from CEO Command Center.', 'info');
+  };
 
   // Modals
   const [isBriefingOpen, setIsBriefingOpen] = useState<boolean>(false);
@@ -556,6 +589,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSearchQuery,
         currency,
         setCurrency,
+        syncedTaxonomy,
+        syncTaxonomyToDashboard,
+        clearSyncedTaxonomy,
         leads,
         customers,
         products,

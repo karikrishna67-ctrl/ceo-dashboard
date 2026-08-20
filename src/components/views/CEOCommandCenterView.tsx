@@ -24,6 +24,11 @@ import {
   Send,
   Bell,
   Check,
+  Building2,
+  ExternalLink,
+  X,
+  Search,
+  Filter,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -54,6 +59,8 @@ export const CEOCommandCenterView: React.FC = () => {
     updateActionStatus,
     setActiveView,
     setIsBriefingOpen,
+    syncedTaxonomy,
+    clearSyncedTaxonomy,
   } = useApp();
 
   const { kpiSnapshot, verifyIntegrity } = useDashboardData();
@@ -502,6 +509,122 @@ export const CEOCommandCenterView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Synced Sector Taxonomy & Aggregate Benchmark Intelligence */}
+      {syncedTaxonomy ? (
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-slate-900/5 border border-amber-300/80 rounded-2xl p-4 md:p-5 shadow-xs transition-all">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-amber-200/60 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-xs shrink-0">
+                <Zap className="w-4 h-4 fill-slate-950" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-sm md:text-base font-black text-slate-900 tracking-tight">
+                    Synced Sector Benchmark Intelligence
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                    Live Sector Sync Active
+                  </span>
+                  {syncedTaxonomy.searchQuery && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      Filtered: &ldquo;{syncedTaxonomy.searchQuery}&rdquo;
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Calibrated to <strong className="text-slate-900">{syncedTaxonomy.selectedSectorName}</strong> across{' '}
+                  <strong className="text-slate-900">{syncedTaxonomy.totalFilteredSectors} master domains</strong> and{' '}
+                  <strong className="text-slate-900">{syncedTaxonomy.totalSubIndustriesCount} extracted sub-industries</strong>.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveView('industry-taxonomy')}
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold text-xs shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Layers className="w-3.5 h-3.5 text-amber-600" />
+                <span>Adjust in Taxonomy</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={clearSyncedTaxonomy}
+                className="px-2.5 py-1.5 rounded-xl bg-white/70 hover:bg-white text-slate-500 hover:text-slate-800 border border-slate-200 text-xs font-semibold transition-colors cursor-pointer"
+                title="Clear synced taxonomy override"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Aggregated Benchmark Metrics Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3">
+            <div className="p-2.5 rounded-xl bg-white/90 border border-amber-200/70 shadow-2xs">
+              <div className="text-[10px] font-bold uppercase text-slate-500">Benchmark Gross Margin</div>
+              <div className="text-lg font-black text-slate-900 font-mono-numeric mt-0.5 flex items-baseline gap-1.5">
+                <span>{syncedTaxonomy.aggregateMetrics.avgGrossMargin}%</span>
+                <span className="text-[10px] font-bold text-emerald-700">
+                  (Org: {((kpiSnapshot.grossProfit / (kpiSnapshot.revenueMTD || 1)) * 100).toFixed(0)}%)
+                </span>
+              </div>
+              <div className="text-[10px] text-slate-500 mt-0.5">Sector industry target</div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-white/90 border border-amber-200/70 shadow-2xs">
+              <div className="text-[10px] font-bold uppercase text-slate-500">Target LTV : CAC</div>
+              <div className="text-lg font-black text-slate-900 font-mono-numeric mt-0.5">
+                {syncedTaxonomy.aggregateMetrics.avgCACtoLTV}x
+              </div>
+              <div className="text-[10px] text-slate-500 mt-0.5">Efficiency benchmark</div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-white/90 border border-amber-200/70 shadow-2xs">
+              <div className="text-[10px] font-bold uppercase text-slate-500">Average Sales Cycle</div>
+              <div className="text-lg font-black text-slate-900 font-mono-numeric mt-0.5">
+                {syncedTaxonomy.aggregateMetrics.avgSalesCycleDays} Days
+              </div>
+              <div className="text-[10px] text-slate-500 mt-0.5">Industry conversion velocity</div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-white/90 border border-amber-200/70 shadow-2xs">
+              <div className="text-[10px] font-bold uppercase text-slate-500">Highest Margin Domain</div>
+              <div className="text-sm font-black text-slate-900 truncate mt-1" title={syncedTaxonomy.aggregateMetrics.highestMarginSector.name}>
+                {syncedTaxonomy.aggregateMetrics.highestMarginSector.name}
+              </div>
+              <div className="text-[10px] text-emerald-700 font-bold mt-0.5">
+                {syncedTaxonomy.aggregateMetrics.highestMarginSector.margin}% benchmark margin
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white border border-slate-200/80 rounded-2xl px-5 py-3.5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+              <Layers className="w-3.5 h-3.5 text-slate-700" />
+            </div>
+            <div>
+              <span className="font-bold text-slate-800">Active Industry Calibration: </span>
+              <span className="text-slate-600 font-medium">{currentOrg.industry || 'Technology & Software'}</span>
+              <span className="text-slate-400 mx-1.5">•</span>
+              <span className="text-emerald-700 font-bold">82% Gross Margin Baseline</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setActiveView('industry-taxonomy')}
+            className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 font-bold border border-slate-200 transition-colors flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+          >
+            <span>Explore 23 Master Sectors & Sync</span>
+            <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+          </button>
+        </div>
+      )}
 
       {/* 6-BOX HERO COMMAND GRID: Key Revenue Diagnostics */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">

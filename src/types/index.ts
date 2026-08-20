@@ -11,6 +11,27 @@ export enum UserRole {
 
 export type CurrencyCode = 'INR' | 'USD' | 'EUR' | 'GBP' | 'AED' | 'SGD';
 
+export interface SyncedTaxonomyState {
+  lastSyncedAt: string;
+  searchQuery: string;
+  selectedSectorId: string;
+  selectedSectorName: string;
+  selectedSubIndustry?: string;
+  totalFilteredSectors: number;
+  totalSubIndustriesCount: number;
+  activeColorThemeId: string;
+  chartSortMode: string;
+  matchedSectorNames: string[];
+  aggregateMetrics: {
+    avgGrossMargin: number;
+    avgCACtoLTV: number;
+    avgSalesCycleDays: number;
+    totalDomains: number;
+    highestMarginSector: { name: string; margin: number };
+    fastestCycleSector: { name: string; days: number };
+  };
+}
+
 export interface BusinessSettings {
   currency: CurrencyCode;
   currencySymbol: string;
