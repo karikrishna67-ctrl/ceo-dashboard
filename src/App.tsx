@@ -23,6 +23,7 @@ import { ScenarioPlannerView } from './components/views/ScenarioPlannerView';
 import { AlertsView } from './components/views/AlertsView';
 import { TasksView } from './components/views/TasksView';
 import { ReportsView } from './components/views/ReportsView';
+import { IndustryTaxonomyView } from './components/views/IndustryTaxonomyView';
 import { TeamView } from './components/views/TeamView';
 import { FollowUpRecoveryView } from './components/views/FollowUpRecoveryView';
 import { IntegrationsView } from './components/views/IntegrationsView';
@@ -82,6 +83,9 @@ function MainAppLayout() {
         return <TasksView />;
       case 'reports':
         return <ReportsView />;
+      case 'industry-taxonomy':
+      case 'industry-sectors':
+        return <IndustryTaxonomyView />;
       case 'team':
         return <TeamView />;
       case 'integrations':

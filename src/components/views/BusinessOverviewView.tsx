@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -9,6 +9,9 @@ import {
   Users,
   Target,
   ShieldCheck,
+  Building2,
+  Sparkles,
+  CheckCircle2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -25,9 +28,14 @@ import {
 import { useApp } from '../../context/AppContext';
 import { formatCurrency, formatPercent } from '../../lib/formatters';
 import { TargetProgressBar } from '../common/TargetProgressBar';
+import { IndustryCategorySelector } from '../common/IndustryCategorySelector';
+import { INDUSTRY_SECTORS, IndustrySector } from '../../data/industrySectors';
 
 export const BusinessOverviewView: React.FC = () => {
-  const { kpiSnapshot, currency, currentOrg, setActiveView } = useApp();
+  const { kpiSnapshot, currency, currentOrg, setCurrentOrg, setActiveView, addToast } = useApp();
+  const [selectedIndustrySector, setSelectedIndustrySector] = useState<string>(
+    currentOrg.industry || 'Technology & Software'
+  );
 
   const quarterlyTarget = (currentOrg?.settings?.monthlyRevenueTarget || 5000000) * 3;
 
@@ -43,10 +51,10 @@ export const BusinessOverviewView: React.FC = () => {
   const ltvCacRatio = kpiSnapshot.blendedCAC > 0 ? (kpiSnapshot.avgLTV / kpiSnapshot.blendedCAC).toFixed(1) : '20.1';
 
   const businessModelStats = [
+    { label: 'Industry Sector', value: currentOrg.industry || 'Technology & Software', desc: 'Active Operating Domain' },
     { label: 'Business Model', value: currentOrg.businessModel, desc: 'Enterprise SaaS & Implementation' },
     { label: 'Revenue Model', value: 'Hybrid (Recurring + Fixed)', desc: '68% MRR / 32% One-time' },
     { label: 'Primary Market', value: 'India (Tier 1 & 2)', desc: 'Expanding to GCC / Southeast Asia' },
-    { label: 'Target Audience', value: 'B2B Mid-Market & SME', desc: '₹10Cr - ₹100Cr Turnover' },
   ];
 
   const unitEconomics = [
@@ -58,8 +66,17 @@ export const BusinessOverviewView: React.FC = () => {
     { label: 'Gross Margin', value: `${kpiSnapshot.grossMarginPct.toFixed(1)}%`, benchmark: '> 75% Target' },
   ];
 
+  const handleSelectIndustry = (sector: IndustrySector) => {
+    setSelectedIndustrySector(sector.name);
+    setCurrentOrg((prev) => ({
+      ...prev,
+      industry: sector.name,
+    }));
+    addToast(`Updated enterprise industry sector to ${sector.name}`, 'success');
+  };
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="space-y-8 max-w-7xl mx-auto pb-16">
       {/* Header */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
         <div>
@@ -72,14 +89,14 @@ export const BusinessOverviewView: React.FC = () => {
             </span>
           </div>
           <p className="text-xs md:text-sm text-slate-500 mt-1">
-            Macro business architecture, YoY financial compounding, unit economics, and customer retention dynamics.
+            Macro business architecture, YoY financial compounding, unit economics, and 23-sector industry taxonomy.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveView('ai-advisor')}
-            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-colors"
+            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
           >
             Audit Unit Economics with AI
           </button>
@@ -103,7 +120,7 @@ export const BusinessOverviewView: React.FC = () => {
         {businessModelStats.map((stat, idx) => (
           <div key={idx} className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-xs">
             <span className="text-[11px] font-medium text-slate-500">{stat.label}</span>
-            <div className="text-base font-bold text-slate-900 mt-1">{stat.value}</div>
+            <div className="text-base font-bold text-slate-900 mt-1 truncate">{stat.value}</div>
             <div className="text-xs text-slate-500 mt-0.5">{stat.desc}</div>
           </div>
         ))}
@@ -143,6 +160,43 @@ export const BusinessOverviewView: React.FC = () => {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* INDUSTRY SECTORS & SUB-INDUSTRIES TAXONOMY EXPLORER */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Industry Benchmark Taxonomy
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-200">
+                23 Master Sectors
+              </span>
+            </div>
+            <h2 className="text-base font-black text-slate-900 mt-0.5">
+              Sector Category Explorer & Extracted Sub-Industries
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Select any industry category button below to adapt diagnostic benchmarks, margin targets, and sales cycle expectations.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500">Active Sector:</span>
+            <span className="px-3 py-1 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-2xs">
+              {currentOrg.industry || selectedIndustrySector}
+            </span>
+          </div>
+        </div>
+
+        {/* 23 Sectors with Category Buttons and Visual Imagery */}
+        <IndustryCategorySelector
+          selectedIndustry={currentOrg.industry || selectedIndustrySector}
+          onSelectIndustry={handleSelectIndustry}
+          layout="grid"
+          showDetailsModal={true}
+        />
       </div>
 
       {/* YoY Comparison Table */}

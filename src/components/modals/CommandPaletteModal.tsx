@@ -42,6 +42,7 @@ import {
   X,
   Keyboard,
   Compass,
+  Layers,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Customer, Lead, Invoice, UserRole, CurrencyCode } from '../../types';
@@ -165,6 +166,7 @@ export const CommandPaletteModal: React.FC = () => {
       { id: 'alerts', title: 'Executive Alerts & Risk Radar', category: 'Operations', icon: Bell, desc: 'Immediate risk notices, payment delays & churn flags' },
       { id: 'tasks', title: 'CEO Action Tasks', category: 'Operations', icon: CheckSquare, desc: 'Assigned high-impact tasks and strategic decisions' },
       { id: 'reports', title: 'Executive Reports & Export', category: 'Reporting', icon: FileText, desc: 'Board summaries, PDF exports & CSV raw data' },
+      { id: 'industry-taxonomy', title: 'Industry Sector Taxonomy (23 Master Domains)', category: 'Reporting', icon: Layers, badge: '23 Sectors', desc: '108+ extracted sub-industries, gross margin baselines, LTV:CAC benchmarks' },
       { id: 'team', title: 'Team & Productivity', category: 'Management', icon: UserCheck, desc: 'Headcount, payroll efficiency & capacity' },
       { id: 'integrations', title: 'Integrations Hub', category: 'Systems', icon: Building, desc: 'Connect CRM, QuickBooks, Stripe & Google Ads' },
       { id: 'settings', title: 'Business Settings & Targets', category: 'Settings', icon: Settings, desc: 'Revenue targets, currency, margins & thresholds' },

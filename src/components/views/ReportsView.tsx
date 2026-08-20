@@ -13,10 +13,13 @@ import {
   ShieldCheck,
   Share2,
   Table,
+  Layers,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { formatCurrency, formatPercent } from '../../lib/formatters';
+import { IndustryReportsExplorer } from '../reports/IndustryReportsExplorer';
+import { INDUSTRY_SECTORS } from '../../data/industrySectors';
 
 export const ReportsView: React.FC = () => {
   const { currentOrg, currentUser, currency, actions, alerts, addToast } = useApp();
@@ -32,7 +35,9 @@ export const ReportsView: React.FC = () => {
     healthScore,
   } = useDashboardData();
 
-  const [reportType, setReportType] = useState<'MONTHLY_BOARD' | 'P_AND_L' | 'SALES_PIPELINE' | 'UNIT_ECONOMICS'>('MONTHLY_BOARD');
+  const [reportType, setReportType] = useState<
+    'MONTHLY_BOARD' | 'P_AND_L' | 'SALES_PIPELINE' | 'UNIT_ECONOMICS' | 'INDUSTRY_TAXONOMY'
+  >('MONTHLY_BOARD');
   const [isExporting, setIsExporting] = useState(false);
   const [isDownloadingCSV, setIsDownloadingCSV] = useState(false);
 
@@ -148,6 +153,19 @@ export const ReportsView: React.FC = () => {
           act.status,
           act.deadline || 'Immediate (Today)',
         ]),
+
+        [''],
+        ['23-SECTOR INDUSTRY BENCHMARK TAXONOMY & EXTRACTED SUB-INDUSTRIES'],
+        ['Industry Sector', 'Sub-Industries Count', 'Benchmark Gross Margin', 'Benchmark LTV:CAC', 'Sales Cycle (Days)', 'Extracted Sub-Industry Domains', 'Sector Scope Description'],
+        ...INDUSTRY_SECTORS.map((sector) => [
+          sector.name,
+          sector.subIndustriesCount.toString(),
+          `${sector.benchmarkGrossMargin}%`,
+          `${sector.benchmarkCACtoLTV}x`,
+          `${sector.typicalSalesCycleDays} days`,
+          sector.subIndustries.join('; '),
+          sector.description,
+        ]),
       ];
 
       const csvContent = csvRows
@@ -189,7 +207,7 @@ export const ReportsView: React.FC = () => {
             </span>
           </div>
           <p className="text-xs md:text-sm text-slate-500 mt-1">
-            Generate and export structured, publication-grade executive dossiers for investors, board members, and executive committees.
+            Generate and export structured, publication-grade executive dossiers, cross-sector benchmarks, and investor reports.
           </p>
         </div>
 
@@ -199,7 +217,7 @@ export const ReportsView: React.FC = () => {
             onClick={handleDownloadCSV}
             disabled={isDownloadingCSV}
             className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
-            title="Download clean CSV summary derived from KPIUtility"
+            title="Download clean CSV summary derived from KPIUtility and 23-Sector Taxonomy"
           >
             <Download className="w-4 h-4" />
             <span>{isDownloadingCSV ? 'Generating CSV...' : 'Download Report (CSV)'}</span>
@@ -224,17 +242,19 @@ export const ReportsView: React.FC = () => {
           { id: 'P_AND_L', label: 'Executive P&L Dossier' },
           { id: 'SALES_PIPELINE', label: 'Sales Velocity & Pipeline' },
           { id: 'UNIT_ECONOMICS', label: 'Unit Economics & CAC / LTV' },
+          { id: 'INDUSTRY_TAXONOMY', label: '23-Sector Industry Taxonomy & Benchmarks' },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setReportType(tab.id as any)}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
               reportType === tab.id
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            {tab.label}
+            {tab.id === 'INDUSTRY_TAXONOMY' && <Layers className="w-3.5 h-3.5 text-amber-400" />}
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>
@@ -250,10 +270,10 @@ export const ReportsView: React.FC = () => {
               </span>
             </div>
             <h2 className="text-2xl font-black text-slate-900">
-              {currentOrg.name} — Executive Business Intelligence Report
+              {currentOrg.name} — {reportType === 'INDUSTRY_TAXONOMY' ? 'Sector Benchmark & Industry Taxonomy Dossier' : 'Executive Business Intelligence Report'}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Prepared for CEO {currentOrg.ceoName || 'Rajesh Sharma'} • Fiscal Period: FY26 MTD (August 2026)
+              Prepared for CEO {currentOrg.ceoName || 'Rajesh Sharma'} • Active Sector: <strong>{currentOrg.industry || 'Technology & Software'}</strong> • Fiscal Period: FY26 MTD (August 2026)
             </p>
           </div>
 
@@ -272,7 +292,8 @@ export const ReportsView: React.FC = () => {
             1. Executive Macro Summary
           </h3>
           <p className="text-xs text-slate-700 leading-relaxed">
-            During the current fiscal cycle, <strong>{currentOrg.name}</strong> generated{' '}
+            During the current fiscal cycle, <strong>{currentOrg.name}</strong> operating in the{' '}
+            <strong>{currentOrg.industry || 'Technology & Software'}</strong> sector generated{' '}
             <strong>{formatCurrency(revenueMetrics.revenueMTD, currency)}</strong> in gross revenue with an{' '}
             <strong>{marginMetrics.grossMarginPct.toFixed(1)}% gross margin</strong> and{' '}
             <strong>{marginMetrics.netMarginPct.toFixed(1)}% net profit margin</strong> (
@@ -371,12 +392,27 @@ export const ReportsView: React.FC = () => {
           </div>
         </div>
 
-        {/* Section 4: Export Summary Strip */}
+        {/* Section 4: Industry Taxonomy & Sector Intelligence with Search & Multi-Select Filters */}
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              4. Industry Sector Taxonomy & Cross-Domain Benchmarks
+            </h3>
+            <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+              23 Master Sectors Available
+            </span>
+          </div>
+
+          {/* Search bar and multi-select filter controls component */}
+          <IndustryReportsExplorer />
+        </div>
+
+        {/* Section 5: Export Summary Strip */}
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
             <Table className="w-4 h-4 text-slate-600" />
             <span className="text-slate-700 font-medium">
-              Want the raw tabular dataset? Export all 42+ KPI dimensions into CSV format.
+              Want the raw tabular dataset? Export all 42+ KPI dimensions and all 23 sector benchmarks into CSV format.
             </span>
           </div>
           <button
@@ -384,7 +420,7 @@ export const ReportsView: React.FC = () => {
             className="px-3.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs shrink-0"
           >
             <Download className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Download CSV Summary</span>
+            <span>Download Full CSV Report</span>
           </button>
         </div>
 

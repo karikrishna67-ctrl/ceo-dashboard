@@ -12,9 +12,12 @@ import {
   AlertTriangle,
   Upload,
   Globe,
+  Layers,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { CurrencyCode, UserRole } from '../../types';
+import { IndustryCategorySelector } from '../common/IndustryCategorySelector';
+import { IndustrySector } from '../../data/industrySectors';
 
 export const SettingsView: React.FC = () => {
   const {
@@ -29,10 +32,12 @@ export const SettingsView: React.FC = () => {
     clearToEmptyState,
     setIsOnboardingOpen,
     setIsDataImportOpen,
+    addToast,
   } = useApp();
 
   const [orgName, setOrgName] = useState(currentOrg.name);
   const [ceoName, setCeoName] = useState(currentOrg.ceoName || 'Rajesh Sharma');
+  const [industry, setIndustry] = useState(currentOrg.industry || 'Technology & Software');
   const [revenueTarget, setRevenueTarget] = useState(currentOrg.settings.monthlyRevenueTarget);
   const [targetMargin, setTargetMargin] = useState(currentOrg.settings.targetNetMarginPct);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -51,6 +56,7 @@ export const SettingsView: React.FC = () => {
       ...prev,
       name: orgName,
       ceoName: ceoName,
+      industry: industry,
       settings: {
         ...prev.settings,
         monthlyRevenueTarget: Number(revenueTarget),
@@ -58,11 +64,21 @@ export const SettingsView: React.FC = () => {
       },
     }));
     setSavedSuccess(true);
+    addToast('Organization settings updated successfully', 'success');
     setTimeout(() => setSavedSuccess(false), 3000);
   };
 
+  const handleSelectIndustry = (sector: IndustrySector) => {
+    setIndustry(sector.name);
+    setCurrentOrg((prev) => ({
+      ...prev,
+      industry: sector.name,
+    }));
+    addToast(`Selected industry: ${sector.name} (${sector.subIndustriesCount} sub-industries)`, 'success');
+  };
+
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
+    <div className="space-y-6 max-w-5xl mx-auto pb-16">
       {/* Header */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
         <div>
@@ -75,7 +91,7 @@ export const SettingsView: React.FC = () => {
             </span>
           </div>
           <p className="text-xs md:text-sm text-slate-500 mt-1">
-            Configure enterprise parameters, default currency, targets, and role access.
+            Configure enterprise parameters, default currency, targets, and 23-sector industry taxonomy.
           </p>
         </div>
 
@@ -153,6 +169,31 @@ export const SettingsView: React.FC = () => {
         </div>
       </div>
 
+      {/* Industry Category Selector Section */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <Layers className="w-4 h-4 text-slate-600" />
+              Industry Sector Taxonomy (23 Master Domains)
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Select your organization's industry category to calibrate benchmark gross margins, sales cycles, and LTV expectations.
+            </p>
+          </div>
+          <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
+            Current: {industry}
+          </span>
+        </div>
+
+        <IndustryCategorySelector
+          selectedIndustry={industry}
+          onSelectIndustry={handleSelectIndustry}
+          layout="grid"
+          showDetailsModal={true}
+        />
+      </div>
+
       {/* Currency Switcher */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
@@ -175,9 +216,9 @@ export const SettingsView: React.FC = () => {
             <button
               key={c.code}
               onClick={() => setCurrency(c.code)}
-              className={`p-3 rounded-xl border text-left transition-all ${
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                 currency === c.code
-                  ? 'bg-amber-50 border-amber-300 shadow-xs'
+                  ? 'bg-amber-50 border-amber-300 shadow-xs ring-2 ring-amber-400/20'
                   : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
               }`}
             >
@@ -199,15 +240,15 @@ export const SettingsView: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             onClick={() => setIsOnboardingOpen(true)}
-            className="p-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors"
+            className="p-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors cursor-pointer"
           >
             <div className="text-xs font-bold text-slate-900">Re-run Onboarding Wizard</div>
-            <div className="text-[11px] text-slate-500 mt-1">Re-evaluate business model parameters</div>
+            <div className="text-[11px] text-slate-500 mt-1">Re-evaluate business model & sector parameters</div>
           </button>
 
           <button
             onClick={() => setIsDataImportOpen(true)}
-            className="p-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors"
+            className="p-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors cursor-pointer"
           >
             <div className="text-xs font-bold text-slate-900">Import CSV Data</div>
             <div className="text-[11px] text-slate-500 mt-1">Bulk upload leads, customers, or expenses</div>
@@ -215,7 +256,7 @@ export const SettingsView: React.FC = () => {
 
           <button
             onClick={resetDemoData}
-            className="p-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors"
+            className="p-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors cursor-pointer"
           >
             <div className="text-xs font-bold text-slate-900">Reset Demo Dataset</div>
             <div className="text-[11px] text-slate-500 mt-1">Restore default Indian B2B demo dataset</div>

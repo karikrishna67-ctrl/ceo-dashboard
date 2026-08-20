@@ -76,6 +76,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           badgeColor: 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
         },
         {
+          id: 'business-overview',
+          label: 'Business Pulse & Health',
+          icon: Building2,
+        },
+        {
           id: 'revenue',
           label: 'Revenue & Growth',
           icon: DollarSign,
@@ -184,12 +189,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       ],
     },
     {
-      title: 'REPORTS',
+      title: 'REPORTS & BENCHMARKS',
       items: [
         {
           id: 'reports',
           label: 'Executive Reports & Export',
           icon: FileText,
+        },
+        {
+          id: 'industry-taxonomy',
+          label: 'Industry Sector Taxonomy',
+          icon: Layers,
+          badge: '23 Domains',
+          badgeColor: 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
         },
       ],
     },
