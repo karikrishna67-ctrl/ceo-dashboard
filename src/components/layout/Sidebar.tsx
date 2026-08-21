@@ -27,6 +27,7 @@ import {
   Flame,
   Command,
   RotateCcw,
+  Trophy,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
@@ -148,6 +149,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           id: 'scenario-planner',
           label: 'Growth Simulator',
           icon: Sliders,
+        },
+        {
+          id: 'gamification',
+          label: 'Gamification Milestones',
+          icon: Trophy,
+          badge: 'Level 3',
+          badgeColor: 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
         },
       ],
     },

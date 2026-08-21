@@ -42,6 +42,11 @@
   animation: threshold-pulse-amber 2.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Safe area padding for mobile home indicator */
+.pb-safe {
+  padding-bottom: calc(0.375rem + env(safe-area-inset-bottom, 0px));
+}
+
 /* Custom Sleek Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -60,4 +65,320 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.8);
 }
+
+/* ==========================================================================
+   PRINT STYLESHEET — Optimized for Physical Documents & Professional PDFs
+   ========================================================================== */
+
+@page {
+  size: A4 portrait;
+  margin: 12mm 14mm 16mm 14mm;
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 8pt;
+    color: #475569;
+  }
+}
+
+/* Screen Only: Keep print footer completely hidden */
+.print-document-footer,
+#printable-official-footer {
+  display: none;
+}
+
+@media print {
+  /* 1. Global Reset for Clean Paper Background and High Contrast Typography */
+  html,
+  body,
+  #root,
+  .min-h-screen {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 10.5pt !important;
+    line-height: 1.45 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-shadow: none !important;
+  }
+
+  /* 2. Hide Non-Essential UI Elements: Navigation, Sidebars, Modals, Action Toolbars */
+  aside,
+  nav,
+  header[role="banner"],
+  .sidebar,
+  .topbar,
+  #reports-polling-status-bar,
+  #reports-filter-bar,
+  .print-hidden,
+  .print\:hidden,
+  .no-print,
+  [role="dialog"],
+  [role="tablist"],
+  .toast-container,
+  .modal-backdrop,
+  .command-palette,
+  button,
+  input,
+  select,
+  .copy-table-button,
+  #copy-table-to-clipboard-btn,
+  #btn-download-reports-csv,
+  #btn-print-reports-pdf,
+  ::-webkit-scrollbar {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 3. Layout Structure Expansion: Remove Sidebar Padding and Viewport Constraints */
+  .lg\:pl-72,
+  .pl-72,
+  .sm\:p-6,
+  .lg\:p-8,
+  .p-4,
+  .p-6,
+  .p-8,
+  .pb-16 {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  main,
+  [role="tabpanel"],
+  .max-w-7xl {
+    max-width: 100% !important;
+    width: 100% !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* 4. Page Break Controls for Sections, Headings, and Tables */
+  section,
+  .executive-card,
+  .print-card,
+  .kpi-card,
+  .chart-container,
+  .recharts-responsive-container {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+    color: #0f172a !important;
+  }
+
+  /* 5. Clean, Professional Table Printing */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 8.5pt !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  th {
+    background-color: #f1f5f9 !important;
+    color: #1e293b !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    padding: 5px 7px !important;
+    border-bottom: 1.5pt solid #94a3b8 !important;
+    border-top: 1pt solid #cbd5e1 !important;
+  }
+
+  td {
+    padding: 5px 7px !important;
+    border-bottom: 0.5pt solid #e2e8f0 !important;
+    color: #0f172a !important;
+  }
+
+  /* 6. Vector Visuals & Chart Styling in Print */
+  .recharts-surface,
+  svg {
+    max-width: 100% !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .recharts-legend-wrapper,
+  .recharts-tooltip-wrapper {
+    display: none !important;
+  }
+
+  /* 7. Badges and Trend Indicators Styling */
+  .bg-slate-50 {
+    background-color: #f8fafc !important;
+  }
+
+  .bg-amber-50 {
+    background-color: #fffbeb !important;
+  }
+
+  .bg-emerald-50 {
+    background-color: #ecfdf5 !important;
+  }
+
+  .bg-rose-50 {
+    background-color: #fff1f2 !important;
+  }
+
+  .bg-indigo-50 {
+    background-color: #eef2ff !important;
+  }
+
+  .border,
+  .border-slate-200,
+  .border-slate-200\/60,
+  .border-slate-200\/80 {
+    border-color: #cbd5e1 !important;
+  }
+
+  /* 8. Monochrome Application Logo & Header (Overrides any Dark Mode Inversions) */
+  .print-app-logo-header,
+  #printable-official-header {
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+    margin-bottom: 1.25rem !important;
+    padding-bottom: 0.75rem !important;
+    border-bottom: 2pt solid #0f172a !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    color: #0f172a !important;
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  .print-monochrome-container {
+    filter: none !important;
+    -webkit-filter: none !important;
+  }
+
+  .print-logo-box {
+    display: flex !important;
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    border: 1pt solid #0f172a !important;
+  }
+
+  .print-monochrome-svg {
+    filter: none !important;
+    -webkit-filter: none !important;
+  }
+
+  .print-monochrome-svg path,
+  .print-monochrome-svg circle,
+  .print-monochrome-svg text {
+    filter: none !important;
+    -webkit-filter: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-logo-title {
+    color: #020617 !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+  }
+
+  .print-logo-pill {
+    background-color: #e2e8f0 !important;
+    color: #0f172a !important;
+    border: 0.5pt solid #94a3b8 !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Universal Dark Mode & Inverted Filter Overrides for Print */
+  html.dark,
+  body.dark,
+  .dark,
+  [data-theme="dark"],
+  [class*="dark:"] {
+    filter: none !important;
+    -webkit-filter: none !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  /* 9. Neutralize interactive shadows and cursor cues */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    cursor: default !important;
+  }
+
+  /* 10. Document Footer with Company Context & CSS Page Counters */
+  .print-document-footer,
+  #printable-official-footer {
+    display: flex !important;
+    visibility: visible !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    padding-top: 6px !important;
+    padding-bottom: 2px !important;
+    background-color: #ffffff !important;
+    border-top: 1pt solid #0f172a !important;
+    font-size: 7.5pt !important;
+    line-height: 1.3 !important;
+    color: #334155 !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    z-index: 9999 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-footer-left,
+  .print-footer-center,
+  .print-footer-right {
+    display: flex !important;
+    visibility: visible !important;
+    font-size: 7.5pt !important;
+  }
+
+  .print-page-counter::after {
+    content: "Page " counter(page) " of " counter(pages);
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  }
+}
+
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopBar } from './components/layout/TopBar';
+import { BottomNavigation } from './components/layout/BottomNavigation';
 
 // Views
 import { CEOCommandCenterView } from './components/views/CEOCommandCenterView';
@@ -24,6 +25,7 @@ import { AlertsView } from './components/views/AlertsView';
 import { TasksView } from './components/views/TasksView';
 import { ReportsView } from './components/views/ReportsView';
 import { IndustryTaxonomyView } from './components/views/IndustryTaxonomyView';
+import { GamificationDashboardView } from './components/views/GamificationDashboardView';
 import { TeamView } from './components/views/TeamView';
 import { FollowUpRecoveryView } from './components/views/FollowUpRecoveryView';
 import { IntegrationsView } from './components/views/IntegrationsView';
@@ -86,6 +88,8 @@ function MainAppLayout() {
       case 'industry-taxonomy':
       case 'industry-sectors':
         return <IndustryTaxonomyView />;
+      case 'gamification':
+        return <GamificationDashboardView />;
       case 'team':
         return <TeamView />;
       case 'integrations':
@@ -98,27 +102,36 @@ function MainAppLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans flex flex-col antialiased selection:bg-amber-100 selection:text-amber-900">
+    <div className="min-h-screen bg-[#f8fafc] print:bg-white text-slate-900 font-sans flex flex-col antialiased selection:bg-amber-100 selection:text-amber-900 print:min-h-0 print:h-auto">
       {/* Fixed Sidebar */}
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <div className="print:hidden">
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      </div>
 
       {/* Main Content Area */}
-      <div className="lg:pl-72 flex flex-col min-h-screen">
+      <div className="lg:pl-72 print:pl-0 flex flex-col min-h-screen print:min-h-0 print:h-auto">
         {/* Sticky Top Header */}
-        <TopBar onOpenSidebar={() => setIsSidebarOpen(true)} />
+        <div className="print:hidden">
+          <TopBar onOpenSidebar={() => setIsSidebarOpen(true)} />
+        </div>
 
         {/* Dynamic Main View */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8 print:p-0 overflow-y-auto print:overflow-visible">
           {renderActiveView()}
         </main>
       </div>
 
+      {/* Mobile Sticky Bottom Navigation */}
+      <BottomNavigation onOpenFullMenu={() => setIsSidebarOpen(true)} />
+
       {/* Global Modals */}
-      <CommandPaletteModal />
-      <DailyBriefingModal />
-      <OnboardingWizardModal />
-      <DataImportModal />
-      <ToastContainer />
+      <div className="print:hidden">
+        <CommandPaletteModal />
+        <DailyBriefingModal />
+        <OnboardingWizardModal />
+        <DataImportModal />
+        <ToastContainer />
+      </div>
     </div>
   );
 }

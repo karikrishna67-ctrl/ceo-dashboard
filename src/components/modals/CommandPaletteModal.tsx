@@ -38,29 +38,80 @@ import {
   Check,
   AlertCircle,
   AlertTriangle,
-  Flame as FireIcon,
   X,
   Keyboard,
   Compass,
   Layers,
+  Scale,
+  FileSpreadsheet,
+  Download,
+  Printer,
+  BookmarkCheck,
+  Zap,
+  Activity,
+  Percent,
+  Clock,
+  PieChart,
+  Trophy,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Customer, Lead, Invoice, UserRole, CurrencyCode } from '../../types';
 import { formatCurrency, formatPercent } from '../../lib/formatters';
+import { INDUSTRY_SECTORS } from '../../data/industrySectors';
 
-type TabFilter = 'all' | 'views' | 'customers' | 'leads' | 'ai' | 'actions';
+type TabFilter = 'all' | 'reports' | 'taxonomy' | 'benchmarking' | 'views' | 'customers' | 'leads' | 'ai' | 'actions';
 
 interface CommandItem {
   id: string;
-  category: 'views' | 'customers' | 'leads' | 'actions' | 'ai' | 'invoices';
+  category: 'reports' | 'taxonomy' | 'benchmarking' | 'views' | 'customers' | 'leads' | 'actions' | 'ai' | 'invoices';
   title: string;
   subtitle?: string;
   icon: React.ElementType;
   badge?: string;
   badgeColor?: string;
   extraInfo?: string;
+  score?: number;
   meta?: any;
   onSelect: () => void;
+}
+
+/**
+ * Multi-token fuzzy match scorer
+ */
+function calculateFuzzyScore(query: string, ...targets: (string | undefined | null)[]): number {
+  if (!query) return 1;
+  const q = query.toLowerCase().trim();
+  const qTokens = q.split(/\s+/).filter(Boolean);
+  if (qTokens.length === 0) return 1;
+
+  let maxScore = 0;
+  for (const target of targets) {
+    if (!target) continue;
+    const text = target.toLowerCase();
+
+    // Exact string match
+    if (text === q) {
+      return 100;
+    }
+    // Starts with query
+    if (text.startsWith(q)) {
+      maxScore = Math.max(maxScore, 85);
+    }
+    // Contains full phrase
+    else if (text.includes(q)) {
+      maxScore = Math.max(maxScore, 70);
+    }
+    // Token evaluation
+    else {
+      const matchedTokens = qTokens.filter((tok) => text.includes(tok));
+      if (matchedTokens.length === qTokens.length) {
+        maxScore = Math.max(maxScore, 55 + qTokens.length * 5);
+      } else if (matchedTokens.length > 0) {
+        maxScore = Math.max(maxScore, Math.round((matchedTokens.length / qTokens.length) * 45));
+      }
+    }
+  }
+  return maxScore;
 }
 
 export const CommandPaletteModal: React.FC = () => {
@@ -83,7 +134,8 @@ export const CommandPaletteModal: React.FC = () => {
     setUserRole,
     setIsBriefingOpen,
     setIsDataImportOpen,
-    addLead,
+    addToast,
+    runScenarioSimulation,
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -144,11 +196,13 @@ export const CommandPaletteModal: React.FC = () => {
     }
   }, [isCommandPaletteOpen, commandPaletteInitialTab, commandPaletteInitialQuery]);
 
-  // Views List for Navigation
+  // Static Views List for Navigation
   const viewsList = useMemo(
     () => [
       { id: 'command-center', title: 'CEO Command Center', category: 'Strategy', icon: LayoutDashboard, badge: 'Main', desc: 'Real-time revenue, leak alerts, top CEO actions' },
       { id: 'business-overview', title: 'Business Overview', category: 'Executive', icon: Compass, desc: 'High-level business health & KPI pulse' },
+      { id: 'industry-benchmarking', title: 'Industry Benchmarking & Action Engine', category: 'Strategy', icon: Scale, badge: 'Gap Engine', desc: 'Compare live KPIs vs 23 sector standards and run prioritized gap-closing playbooks' },
+      { id: 'industry-taxonomy', title: 'Industry Sector Taxonomy (23 Master Domains)', category: 'Reporting', icon: Layers, badge: '23 Sectors', desc: '108+ extracted sub-industries, gross margin baselines, LTV:CAC benchmarks' },
       { id: 'revenue', title: 'Revenue & Growth Analytics', category: 'Financials', icon: TrendingUp, desc: 'MRR, ARR, expansion, cohorts & sales velocity' },
       { id: 'finance', title: 'Finance & P&L Statement', category: 'Financials', icon: DollarSign, desc: 'EBITDA, gross margin, receivables & payables' },
       { id: 'sales-crm', title: 'Sales CRM & Pipeline', category: 'Sales', icon: Briefcase, desc: 'Deal stages, conversion bottlenecks & rep quota' },
@@ -163,10 +217,10 @@ export const CommandPaletteModal: React.FC = () => {
       { id: 'forecasting', title: 'Revenue & Cash Forecasting', category: 'Predictive', icon: LineChart, desc: 'Conservative, expected & optimistic run rate' },
       { id: 'opportunities', title: 'Growth Opportunities Matrix', category: 'Strategy', icon: Sparkles, desc: 'Prioritized revenue accelerators with 1-click execution' },
       { id: 'scenario-planner', title: 'Scenario & What-If Planner', category: 'Strategy', icon: Sliders, desc: 'Simulate price hikes, hiring & marketing budget shifts' },
+      { id: 'gamification', title: 'Gamification Dashboard & Milestones', category: 'Strategy', icon: Trophy, badge: 'Level Quest', desc: 'Simulate company revenue growth milestones, unlock badges & review financial trajectory impacts' },
       { id: 'alerts', title: 'Executive Alerts & Risk Radar', category: 'Operations', icon: Bell, desc: 'Immediate risk notices, payment delays & churn flags' },
       { id: 'tasks', title: 'CEO Action Tasks', category: 'Operations', icon: CheckSquare, desc: 'Assigned high-impact tasks and strategic decisions' },
       { id: 'reports', title: 'Executive Reports & Export', category: 'Reporting', icon: FileText, desc: 'Board summaries, PDF exports & CSV raw data' },
-      { id: 'industry-taxonomy', title: 'Industry Sector Taxonomy (23 Master Domains)', category: 'Reporting', icon: Layers, badge: '23 Sectors', desc: '108+ extracted sub-industries, gross margin baselines, LTV:CAC benchmarks' },
       { id: 'team', title: 'Team & Productivity', category: 'Management', icon: UserCheck, desc: 'Headcount, payroll efficiency & capacity' },
       { id: 'integrations', title: 'Integrations Hub', category: 'Systems', icon: Building, desc: 'Connect CRM, QuickBooks, Stripe & Google Ads' },
       { id: 'settings', title: 'Business Settings & Targets', category: 'Settings', icon: Settings, desc: 'Revenue targets, currency, margins & thresholds' },
@@ -174,7 +228,223 @@ export const CommandPaletteModal: React.FC = () => {
     []
   );
 
-  // Filtered and Searchable Command Items
+  // Executive Reports Registry
+  const reportsList = useMemo(
+    () => [
+      {
+        id: 'report-monthly-board',
+        title: 'Monthly Executive Board Deck Report',
+        subtitle: 'Comprehensive monthly summary of ARR, EBITDA, net margin, sales velocity & working capital',
+        category: 'Board Reporting',
+        icon: FileText,
+        badge: 'Board Deck',
+        badgeColor: 'bg-blue-100 text-blue-800 border-blue-200 font-bold',
+        extraInfo: 'View / Print PDF',
+        keywords: 'monthly board p&l margin arr ebitda financial report deck presentation',
+        onSelect: () => {
+          setActiveView('reports');
+          setIsCommandPaletteOpen(false);
+          addToast('Opened Monthly Executive Board Deck Report', 'info');
+        },
+      },
+      {
+        id: 'report-p-and-l',
+        title: 'Profit & Loss Statement (P&L) & Margin Audit',
+        subtitle: 'Detailed revenue breakdown, direct COGS, gross margin %, operating expenses & net margin',
+        category: 'Financial Statement',
+        icon: DollarSign,
+        badge: 'P&L Statement',
+        badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200 font-bold',
+        extraInfo: 'Financials',
+        keywords: 'profit and loss p&l statement gross margin net margin cogs revenue ebitda cfo audit',
+        onSelect: () => {
+          setActiveView('reports');
+          setIsCommandPaletteOpen(false);
+          addToast('Opened Profit & Loss Statement (P&L)', 'info');
+        },
+      },
+      {
+        id: 'report-sales-pipeline',
+        title: 'Sales Pipeline Velocity & Conversion Bottleneck Report',
+        subtitle: 'Funnel stages, lead conversion rates, win rates, sales rep quotas and cycle velocity',
+        category: 'Sales Analytics',
+        icon: Target,
+        badge: 'Pipeline Audit',
+        badgeColor: 'bg-purple-100 text-purple-800 border-purple-200 font-bold',
+        extraInfo: 'Sales CRM',
+        keywords: 'sales pipeline funnel conversion deal size win rate cycle days quota rep performance velocity',
+        onSelect: () => {
+          setActiveView('reports');
+          setIsCommandPaletteOpen(false);
+          addToast('Opened Sales Pipeline & Velocity Report', 'info');
+        },
+      },
+      {
+        id: 'report-unit-economics',
+        title: 'Unit Economics & LTV : CAC Payback Report',
+        subtitle: 'Blended CAC, lifetime value (LTV), CAC payback period months, and cohort payback metrics',
+        category: 'Unit Economics',
+        icon: PieChart,
+        badge: 'Unit Economics',
+        badgeColor: 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
+        extraInfo: 'Growth Metrics',
+        keywords: 'unit economics ltv cac ratio payback period months blended cac customer acquisition lifetime value',
+        onSelect: () => {
+          setActiveView('reports');
+          setIsCommandPaletteOpen(false);
+          addToast('Opened Unit Economics & LTV:CAC Report', 'info');
+        },
+      },
+      {
+        id: 'report-industry-taxonomy',
+        title: '23-Sector Industry Taxonomy & Benchmark Report',
+        subtitle: 'Cross-industry benchmarking standards across 108+ extracted sub-industries and financial baselines',
+        category: 'Taxonomy & Benchmark',
+        icon: Layers,
+        badge: '23 Sectors',
+        badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-200 font-bold',
+        extraInfo: 'Sector Matrix',
+        keywords: 'industry taxonomy sectors 23 domains sub industries benchmarks gross margin ltv cac sales cycle',
+        onSelect: () => {
+          setActiveView('reports');
+          setIsCommandPaletteOpen(false);
+          addToast('Opened 23-Sector Industry Taxonomy Report', 'info');
+        },
+      },
+      {
+        id: 'report-export-csv',
+        title: 'Export Master KPI Diagnostic Report (CSV)',
+        subtitle: 'Download complete structured tabular dataset of all active financial and operational indicators',
+        category: 'Data Export',
+        icon: FileSpreadsheet,
+        badge: 'CSV Download',
+        badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200 font-bold',
+        extraInfo: '1-Click CSV',
+        keywords: 'export download csv raw data spreadsheet kpis metrics tabular master audit excel',
+        onSelect: () => {
+          setActiveView('reports');
+          setIsCommandPaletteOpen(false);
+          addToast('Navigate to Board Reports to trigger CSV download', 'info');
+        },
+      },
+      {
+        id: 'report-export-pdf',
+        title: 'Print Executive PDF Board Dossier',
+        subtitle: 'Generate high-resolution printable PDF dossier with executive signatures and audit timestamps',
+        category: 'Document Export',
+        icon: Printer,
+        badge: 'Print / PDF',
+        badgeColor: 'bg-slate-100 text-slate-800 border-slate-200 font-bold',
+        extraInfo: 'PDF Deck',
+        keywords: 'print pdf download export board dossier signature printable report paper deck',
+        onSelect: () => {
+          setActiveView('reports');
+          setIsCommandPaletteOpen(false);
+          addToast('Triggering Printable Executive Report Mode...', 'info');
+        },
+      },
+    ],
+    [setActiveView, setIsCommandPaletteOpen, addToast]
+  );
+
+  // Benchmarking Action Items & Gap-Closing Playbooks
+  const benchmarkingActionItems = useMemo(
+    () => [
+      {
+        id: 'bench-act-cogs',
+        title: 'COGS Rationalization & Direct Cost Restructuring',
+        subtitle: 'Target: Gross Margin Baseline • Migrate active cloud workloads to 3-year reserved capacity & prune licenses',
+        category: 'Unit Economics',
+        icon: DollarSign,
+        badge: 'Critical Gap',
+        badgeColor: 'bg-rose-100 text-rose-800 border-rose-200 font-bold',
+        extraInfo: '+4-8% Margin Expansion',
+        timeframe: '4-8 Weeks',
+        impact: 'Expand gross margins by rationalizing direct server infrastructure and vendor software',
+        keywords: 'cogs rationalization gross margin direct costs hosting aws kubernetes reserved capacity pricing discount',
+        onSelect: () => {
+          setActiveView('industry-benchmarking');
+          setIsCommandPaletteOpen(false);
+          addToast('Focused on COGS Rationalization Action Plan', 'info');
+        },
+      },
+      {
+        id: 'bench-act-ltvcac',
+        title: 'Acquisition Unit Economics & Sales Funnel Efficiency',
+        subtitle: 'Target: LTV:CAC Multiplier • Reallocate paid search into high-intent product-led organic channels',
+        category: 'Unit Economics',
+        icon: Activity,
+        badge: 'High Priority',
+        badgeColor: 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
+        extraInfo: '+0.8x CAC Efficiency',
+        timeframe: '6-12 Weeks',
+        impact: 'Increase customer lifetime value multiplier and compress payback period',
+        keywords: 'ltv cac acquisition marketing spend organic channels annual upfront billing payback onboarding',
+        onSelect: () => {
+          setActiveView('industry-benchmarking');
+          setIsCommandPaletteOpen(false);
+          addToast('Focused on Unit Economics & CAC Efficiency Action Plan', 'info');
+        },
+      },
+      {
+        id: 'bench-act-velocity',
+        title: 'Deal Pipeline Velocity & Stage Gating Optimization',
+        subtitle: 'Target: Sales Cycle Velocity • Standardize 14-day POCs and pre-package SOC2 security compliance',
+        category: 'Sales Pipeline',
+        icon: Clock,
+        badge: 'High Priority',
+        badgeColor: 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
+        extraInfo: '-15 Days Cycle Time',
+        timeframe: '3-6 Weeks',
+        impact: 'Compress enterprise deal sales cycle duration and accelerate throughput',
+        keywords: 'sales cycle velocity pipeline stage gating poc proof of concept soc2 compliance legal msa deal size',
+        onSelect: () => {
+          setActiveView('industry-benchmarking');
+          setIsCommandPaletteOpen(false);
+          addToast('Focused on Sales Cycle Velocity Action Plan', 'info');
+        },
+      },
+      {
+        id: 'bench-act-nrr',
+        title: 'Account Expansion & Churn Insulation Playbook',
+        subtitle: 'Target: Net Retention Rate (NRR) • Deploy proactive telemetry health alerts for top 20% ARR tier accounts',
+        category: 'Revenue Growth',
+        icon: TrendingUp,
+        badge: 'High Priority',
+        badgeColor: 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
+        extraInfo: '+6% NRR Lift',
+        timeframe: '8-16 Weeks',
+        impact: 'Compound ARR expansion via cross-sell add-ons and automated customer success interventions',
+        keywords: 'net retention rate nrr churn reduction expansion upsell customer success proactive alerts renewals',
+        onSelect: () => {
+          setActiveView('industry-benchmarking');
+          setIsCommandPaletteOpen(false);
+          addToast('Focused on Account Expansion & Churn Insulation Plan', 'info');
+        },
+      },
+      {
+        id: 'bench-act-scale',
+        title: 'Aggressive Capital Deployment & Market Share Capture',
+        subtitle: 'Target: Top Decile Growth • Expand sales engineering headcount by 2-3 reps while unit economics outperform',
+        category: 'Revenue Growth',
+        icon: Zap,
+        badge: 'Growth Engine',
+        badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200 font-bold',
+        extraInfo: '+35% ARR Acceleration',
+        timeframe: 'Immediate',
+        impact: 'Scale high-converting sales channels into adjacent industry sectors',
+        keywords: 'aggressive capital scale market share growth hiring sales reps expansion enterprise acceleration',
+        onSelect: () => {
+          setActiveView('industry-benchmarking');
+          setIsCommandPaletteOpen(false);
+          addToast('Focused on Market Share Capture Action Plan', 'info');
+        },
+      },
+    ],
+    [setActiveView, setIsCommandPaletteOpen, addToast]
+  );
+
+  // Filtered and Fuzzy Searchable Command Items
   const items: CommandItem[] = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     const result: CommandItem[] = [];
@@ -189,6 +459,7 @@ export const CommandPaletteModal: React.FC = () => {
         icon: Bot,
         badge: 'AI Advisor',
         badgeColor: 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
+        score: q ? 95 : 50,
         onSelect: () => {
           if (q) {
             handleRunAiAdvisor(q);
@@ -199,10 +470,114 @@ export const CommandPaletteModal: React.FC = () => {
       });
     }
 
-    // 2. Navigation Views
+    // 2. Executive Reports & Statements
+    if (activeTab === 'all' || activeTab === 'reports') {
+      reportsList.forEach((rpt) => {
+        const score = calculateFuzzyScore(q, rpt.title, rpt.subtitle, rpt.category, rpt.keywords, rpt.badge);
+        if (!q || score > 20) {
+          result.push({
+            id: rpt.id,
+            category: 'reports',
+            title: rpt.title,
+            subtitle: rpt.subtitle,
+            icon: rpt.icon,
+            badge: rpt.badge,
+            badgeColor: rpt.badgeColor,
+            extraInfo: rpt.extraInfo,
+            score,
+            onSelect: rpt.onSelect,
+          });
+        }
+      });
+    }
+
+    // 3. Benchmarking Action Items & Gap-Closing Playbooks
+    if (activeTab === 'all' || activeTab === 'benchmarking') {
+      benchmarkingActionItems.forEach((act) => {
+        const score = calculateFuzzyScore(q, act.title, act.subtitle, act.category, act.keywords, act.impact, act.timeframe);
+        if (!q || score > 20) {
+          result.push({
+            id: act.id,
+            category: 'benchmarking',
+            title: act.title,
+            subtitle: act.subtitle,
+            icon: act.icon,
+            badge: act.badge,
+            badgeColor: act.badgeColor,
+            extraInfo: act.extraInfo,
+            score,
+            onSelect: act.onSelect,
+          });
+        }
+      });
+    }
+
+    // 4. Industry Taxonomy Sectors (23 Master Domains & 108+ Sub-Industries)
+    if (activeTab === 'all' || activeTab === 'taxonomy') {
+      INDUSTRY_SECTORS.forEach((sector) => {
+        const subIndustriesJoined = sector.subIndustries.join('; ');
+        const score = calculateFuzzyScore(
+          q,
+          sector.name,
+          sector.description,
+          subIndustriesJoined,
+          `${sector.benchmarkGrossMargin}% Gross Margin`,
+          `${sector.benchmarkCACtoLTV}x LTV:CAC`,
+          `${sector.typicalSalesCycleDays} Days Sales Cycle`,
+          'industry sector taxonomy benchmark domain'
+        );
+
+        if (!q || score > 20) {
+          result.push({
+            id: `sector-${sector.id}`,
+            category: 'taxonomy',
+            title: `${sector.name} (${sector.subIndustriesCount} Domains)`,
+            subtitle: `${sector.subIndustries.slice(0, 3).join(', ')}${sector.subIndustries.length > 3 ? '...' : ''} • GM: ${sector.benchmarkGrossMargin}% | LTV:CAC: ${sector.benchmarkCACtoLTV}x | Cycle: ${sector.typicalSalesCycleDays}d`,
+            icon: Layers,
+            badge: `${sector.subIndustriesCount} Sub-Industries`,
+            badgeColor: 'bg-indigo-50 text-indigo-800 border-indigo-200 font-bold',
+            extraInfo: `Benchmark: ${sector.benchmarkGrossMargin}% GM`,
+            score,
+            onSelect: () => {
+              setActiveView('industry-taxonomy');
+              setIsCommandPaletteOpen(false);
+              addToast(`Inspecting ${sector.name} Taxonomy & Benchmarks`, 'info');
+            },
+          });
+        }
+
+        // Also index sub-industry specializations when query is specific
+        if (q && q.length > 2) {
+          sector.subIndustries.forEach((subName, subIdx) => {
+            const subScore = calculateFuzzyScore(q, subName, sector.name);
+            if (subScore > 35) {
+              result.push({
+                id: `sub-${sector.id}-${subIdx}`,
+                category: 'taxonomy',
+                title: subName,
+                subtitle: `Specialization in ${sector.name} • Benchmark GM: ${sector.benchmarkGrossMargin}% | LTV:CAC: ${sector.benchmarkCACtoLTV}x`,
+                icon: Building,
+                badge: 'Sub-Industry',
+                badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
+                extraInfo: sector.name,
+                score: subScore + 5,
+                onSelect: () => {
+                  setActiveView('industry-taxonomy');
+                  setIsCommandPaletteOpen(false);
+                  addToast(`Selected domain: "${subName}" (${sector.name})`, 'info');
+                },
+              });
+            }
+          });
+        }
+      });
+    }
+
+    // 5. Navigation Views & Modules
     if (activeTab === 'all' || activeTab === 'views') {
       viewsList.forEach((v) => {
-        if (!q || v.title.toLowerCase().includes(q) || v.desc.toLowerCase().includes(q) || v.category.toLowerCase().includes(q)) {
+        const score = calculateFuzzyScore(q, v.title, v.desc, v.category, v.badge);
+        if (!q || score > 20) {
           result.push({
             id: `view-${v.id}`,
             category: 'views',
@@ -212,6 +587,7 @@ export const CommandPaletteModal: React.FC = () => {
             badge: v.badge || v.category,
             badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
             extraInfo: activeView === v.id ? 'Current View' : 'Navigate',
+            score,
             onSelect: () => {
               setActiveView(v.id);
               setIsCommandPaletteOpen(false);
@@ -221,18 +597,11 @@ export const CommandPaletteModal: React.FC = () => {
       });
     }
 
-    // 3. Customers & Accounts Search
+    // 6. Customers & Accounts Search
     if (activeTab === 'all' || activeTab === 'customers') {
       customers.forEach((c) => {
-        const matches =
-          !q ||
-          c.name.toLowerCase().includes(q) ||
-          c.company.toLowerCase().includes(q) ||
-          c.industry.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q) ||
-          c.segment.toLowerCase().includes(q);
-
-        if (matches) {
+        const score = calculateFuzzyScore(q, c.company, c.name, c.industry, c.email, c.segment, c.assignedAccountManager);
+        if (!q || score > 20) {
           const isAtRisk = c.churnRiskScore >= 60 || c.segment === 'At Risk';
           const isVip = c.segment === 'VIP' || c.segment === 'High Value';
 
@@ -249,6 +618,7 @@ export const CommandPaletteModal: React.FC = () => {
               ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
               : 'bg-emerald-100 text-emerald-800 border-emerald-200',
             extraInfo: `MRR: ${formatCurrency(c.monthlyRecurring, currency)} • LTV: ${formatCurrency(c.lifetimeValue, currency)}`,
+            score,
             meta: c,
             onSelect: () => {
               setSelectedCustomer(c);
@@ -258,18 +628,11 @@ export const CommandPaletteModal: React.FC = () => {
       });
     }
 
-    // 4. Inbound Leads Search
+    // 7. Inbound Leads Search
     if (activeTab === 'all' || activeTab === 'leads') {
       leads.forEach((l) => {
-        const matches =
-          !q ||
-          l.name.toLowerCase().includes(q) ||
-          l.company.toLowerCase().includes(q) ||
-          l.source.toLowerCase().includes(q) ||
-          l.status.toLowerCase().includes(q) ||
-          l.temperature.toLowerCase().includes(q);
-
-        if (matches) {
+        const score = calculateFuzzyScore(q, l.name, l.company, l.source, l.status, l.temperature, l.assignedSalesperson);
+        if (!q || score > 20) {
           result.push({
             id: `lead-${l.id}`,
             category: 'leads',
@@ -284,6 +647,7 @@ export const CommandPaletteModal: React.FC = () => {
                 ? 'bg-amber-100 text-amber-800 border-amber-200'
                 : 'bg-blue-100 text-blue-800 border-blue-200',
             extraInfo: `Prob: ${l.dealProbability}%`,
+            score,
             meta: l,
             onSelect: () => {
               setActiveView('leads');
@@ -294,12 +658,13 @@ export const CommandPaletteModal: React.FC = () => {
       });
     }
 
-    // 5. Invoices & Overdue Receivables
+    // 8. Invoices & Overdue Receivables
     if (activeTab === 'all' || activeTab === 'actions') {
       invoices
         .filter((inv) => inv.status === 'Overdue')
         .forEach((inv) => {
-          if (!q || inv.customerName.toLowerCase().includes(q) || inv.invoiceNumber.toLowerCase().includes(q)) {
+          const score = calculateFuzzyScore(q, inv.customerName, inv.invoiceNumber, 'overdue invoice receivable');
+          if (!q || score > 20) {
             result.push({
               id: `inv-${inv.id}`,
               category: 'invoices',
@@ -309,6 +674,7 @@ export const CommandPaletteModal: React.FC = () => {
               badge: 'Overdue',
               badgeColor: 'bg-rose-100 text-rose-800 border-rose-200 font-bold',
               extraInfo: 'Collect Now',
+              score,
               onSelect: () => {
                 setActiveView('cash-flow');
                 setIsCommandPaletteOpen(false);
@@ -318,7 +684,7 @@ export const CommandPaletteModal: React.FC = () => {
         });
     }
 
-    // 6. Quick Executive Actions
+    // 9. Quick Executive Actions
     if (activeTab === 'all' || activeTab === 'actions') {
       const executiveActions: CommandItem[] = [
         {
@@ -329,9 +695,24 @@ export const CommandPaletteModal: React.FC = () => {
           icon: Sparkles,
           badge: 'Daily Pulse',
           badgeColor: 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
+          score: calculateFuzzyScore(q, 'daily ceo briefing morning update priorities run rate overnight'),
           onSelect: () => {
             setIsCommandPaletteOpen(false);
             setIsBriefingOpen(true);
+          },
+        },
+        {
+          id: 'action-benchmarking-engine',
+          category: 'actions',
+          title: 'Run Industry Benchmarking Gap Diagnostic',
+          subtitle: 'Compare live gross margin, CAC, and sales velocity against 23 sector standards',
+          icon: Scale,
+          badge: 'Benchmarking',
+          badgeColor: 'bg-blue-100 text-blue-900 border-blue-300 font-bold',
+          score: calculateFuzzyScore(q, 'industry benchmarking gap diagnostic sector comparison action plan'),
+          onSelect: () => {
+            setActiveView('industry-benchmarking');
+            setIsCommandPaletteOpen(false);
           },
         },
         {
@@ -342,6 +723,7 @@ export const CommandPaletteModal: React.FC = () => {
           icon: FileText,
           badge: 'Bulk Import',
           badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+          score: calculateFuzzyScore(q, 'import data csv excel upload customers leads expenses'),
           onSelect: () => {
             setIsCommandPaletteOpen(false);
             setIsDataImportOpen(true);
@@ -355,6 +737,7 @@ export const CommandPaletteModal: React.FC = () => {
           icon: Flame,
           badge: '₹25.15L Potential',
           badgeColor: 'bg-rose-100 text-rose-800 border-rose-200 font-bold',
+          score: calculateFuzzyScore(q, 'revenue leakage audit 8 stages cost leaks receivables proposals'),
           onSelect: () => {
             setActiveView('revenue-leakage');
             setIsCommandPaletteOpen(false);
@@ -364,13 +747,21 @@ export const CommandPaletteModal: React.FC = () => {
           id: 'action-price-simulation',
           category: 'actions',
           title: 'Simulate 15% Price Increase Scenario',
-          subtitle: 'Test elasticity, margin expansion, and churn resistance',
+          subtitle: 'Test elasticity, margin expansion, and churn resistance in real time',
           icon: Sliders,
           badge: 'Simulation',
           badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+          score: calculateFuzzyScore(q, 'simulate scenario price increase margin elasticity hiring headcount'),
           onSelect: () => {
-            setActiveView('scenario-planner');
+            runScenarioSimulation({
+              pricingShiftPercent: 15,
+              salesHeadcountDelta: 0,
+              pipelineVelocityMultiplier: 1.0,
+              churnReductionPercent: 0,
+              costReductionPercent: 0,
+            });
             setIsCommandPaletteOpen(false);
+            addToast('Applied 15% Price Increase Scenario simulation', 'success');
           },
         },
         {
@@ -381,6 +772,7 @@ export const CommandPaletteModal: React.FC = () => {
           icon: DollarSign,
           badge: currency,
           badgeColor: 'bg-slate-100 text-slate-800 border-slate-200 font-bold',
+          score: calculateFuzzyScore(q, 'switch currency inr usd eur gbp money format'),
           onSelect: () => {
             const nextCur: CurrencyCode = currency === 'INR' ? 'USD' : currency === 'USD' ? 'EUR' : 'INR';
             setCurrency(nextCur);
@@ -395,6 +787,7 @@ export const CommandPaletteModal: React.FC = () => {
           icon: UserCheck,
           badge: userRole,
           badgeColor: 'bg-amber-100 text-amber-900 border-amber-200',
+          score: calculateFuzzyScore(q, 'switch role perspective ceo cfo sales marketing manager'),
           onSelect: () => {
             const nextRole =
               userRole === UserRole.CEO
@@ -409,10 +802,15 @@ export const CommandPaletteModal: React.FC = () => {
       ];
 
       executiveActions.forEach((act) => {
-        if (!q || act.title.toLowerCase().includes(q) || act.subtitle?.toLowerCase().includes(q)) {
+        if (!q || (act.score && act.score > 20)) {
           result.push(act);
         }
       });
+    }
+
+    // Sort results by fuzzy score when a search query is active
+    if (q) {
+      result.sort((a, b) => (b.score || 0) - (a.score || 0));
     }
 
     return result;
@@ -420,6 +818,8 @@ export const CommandPaletteModal: React.FC = () => {
     searchQuery,
     activeTab,
     viewsList,
+    reportsList,
+    benchmarkingActionItems,
     customers,
     leads,
     invoices,
@@ -432,6 +832,8 @@ export const CommandPaletteModal: React.FC = () => {
     setIsDataImportOpen,
     setCurrency,
     setUserRole,
+    addToast,
+    runScenarioSimulation,
   ]);
 
   // Handle Keyboard navigation in list
@@ -457,7 +859,7 @@ export const CommandPaletteModal: React.FC = () => {
       }
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      const tabs: TabFilter[] = ['all', 'views', 'customers', 'leads', 'ai', 'actions'];
+      const tabs: TabFilter[] = ['all', 'reports', 'taxonomy', 'benchmarking', 'views', 'customers', 'leads', 'ai', 'actions'];
       const currentIndex = tabs.indexOf(activeTab);
       const nextIndex = e.shiftKey
         ? (currentIndex - 1 + tabs.length) % tabs.length
@@ -505,7 +907,7 @@ export const CommandPaletteModal: React.FC = () => {
     } catch (err) {
       console.error(err);
       setAiResponse(
-        `### STRATEGIC DIAGNOSIS\nBased on current MTD performance (₹38.5L / ₹50.0L Target):\n1. **Close 2 Negotiation Deals**: Prioritize FinTrack Digital (₹6.5L) and Apex Logistics (₹4.2L).\n2. **Collect Overdue Receivables**: Trigger WhatsApp reminders for ₹4.33L overdue invoices.\n3. **Reallocate Marketing**: Shift Meta spend into WhatsApp high-converting campaigns (35.6x ROAS).\n\n*Expected Impact: ₹10.7L deal closing + ₹4.33L cash recovery.*`
+        `### STRATEGIC DIAGNOSIS & BENCHMARKING ACTION PLAN\nBased on current organization metrics for ${currentOrg.name}:\n1. **Gross Margin Gap**: Current baseline (${kpiSnapshot.grossMarginPercent}%) vs Sector average requires 3-year cloud reserve commit and vendor software consolidation.\n2. **Pipeline Velocity Acceleration**: Compress ${kpiSnapshot.salesCycleDays}-day sales cycle by pre-packaging SOC2 compliance & 14-day capped proof-of-concept gating.\n3. **Overdue Receivables**: Recover trapped working capital from overdue customer invoices to expand cash runway past ${kpiSnapshot.runwayMonths.toFixed(1)} months.\n\n*Execute via the Industry Benchmarking module to track gap-closing milestones.*`
       );
     } finally {
       setIsAiLoading(false);
@@ -521,11 +923,11 @@ export const CommandPaletteModal: React.FC = () => {
   };
 
   const executivePrompts = [
-    'How do I close the ₹11.5L MTD revenue gap in 15 days?',
+    'How do I close the performance gap against top decile software margins?',
     'Which overdue receivables should we recover first?',
     'What is our largest pipeline conversion leakage point?',
     'Simulate 15% price increase impact on profit margins',
-    'Audit marketing channels for CAC vs ROAS efficiency',
+    'Compare our LTV:CAC unit economics against sector benchmark',
   ];
 
   if (!isCommandPaletteOpen) return null;
@@ -534,7 +936,7 @@ export const CommandPaletteModal: React.FC = () => {
     <AnimatePresence>
       <div
         id="command-palette-backdrop"
-        className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150"
+        className="fixed inset-0 z-50 flex items-start justify-center pt-12 sm:pt-20 px-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150"
         onClick={(e) => {
           if (e.target === e.currentTarget) {
             setIsCommandPaletteOpen(false);
@@ -546,7 +948,7 @@ export const CommandPaletteModal: React.FC = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: -12 }}
           transition={{ duration: 0.15, ease: 'easeOut' }}
-          className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[82vh]"
+          className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]"
           onKeyDown={handleKeyDown}
         >
           {/* Header & Search Bar */}
@@ -574,8 +976,8 @@ export const CommandPaletteModal: React.FC = () => {
                 }}
                 placeholder={
                   activeTab === 'ai'
-                    ? 'Ask AI Advisor any executive question (e.g., "How to close ₹11.5L gap?")...'
-                    : 'Search customers, views, leads, overdue invoices, or type "?" for AI...'
+                    ? 'Ask AI Advisor any executive question (e.g., "How to close margin gap?")...'
+                    : 'Fuzzy search across reports, taxonomy sectors, action playbooks, customers...'
                 }
                 className="w-full bg-white border border-slate-200/90 rounded-xl pl-10 pr-20 py-2.5 text-sm text-slate-900 placeholder-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all shadow-2xs"
               />
@@ -588,22 +990,25 @@ export const CommandPaletteModal: React.FC = () => {
 
             <button
               onClick={() => setIsCommandPaletteOpen(false)}
-              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               title="Close (Esc)"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Navigation Category Tabs */}
+          {/* Navigation Category Tabs with Comprehensive Filters */}
           <div className="px-4 py-2 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between gap-2 overflow-x-auto text-xs font-semibold text-slate-600 scrollbar-none">
             <div className="flex items-center gap-1">
               {(
                 [
                   { id: 'all', label: 'All Results', count: items.length },
-                  { id: 'views', label: 'Views & Modules', count: viewsList.length },
+                  { id: 'reports', label: 'Reports', icon: FileText, count: reportsList.length },
+                  { id: 'taxonomy', label: 'Industry Sectors', icon: Layers, count: INDUSTRY_SECTORS.length },
+                  { id: 'benchmarking', label: 'Action Plans', icon: Scale, count: benchmarkingActionItems.length },
+                  { id: 'views', label: 'Views', count: viewsList.length },
                   { id: 'customers', label: 'Customers', count: customers.length },
-                  { id: 'leads', label: 'Inbound Leads', count: leads.length },
+                  { id: 'leads', label: 'Leads', count: leads.length },
                   { id: 'ai', label: 'AI Advisor', icon: Sparkles },
                   { id: 'actions', label: 'Quick Actions' },
                 ] as const
@@ -614,7 +1019,7 @@ export const CommandPaletteModal: React.FC = () => {
                     setActiveTab(tab.id);
                     setSelectedCustomer(null);
                   }}
-                  className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                  className={`px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                     activeTab === tab.id
                       ? 'bg-amber-800 text-white shadow-2xs font-bold'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -635,7 +1040,7 @@ export const CommandPaletteModal: React.FC = () => {
               ))}
             </div>
 
-            <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-500">
+            <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-500 shrink-0 pl-2">
               <span>Press</span>
               <kbd className="px-1.5 py-0.5 font-mono text-[10px] bg-white border border-slate-200 rounded shadow-2xs font-semibold">
                 Tab
@@ -660,7 +1065,7 @@ export const CommandPaletteModal: React.FC = () => {
                       <button
                         key={idx}
                         onClick={() => handleRunAiAdvisor(prompt)}
-                        className="text-left p-2.5 rounded-xl border border-amber-200/70 bg-amber-50/40 hover:bg-amber-50 hover:border-amber-300 text-xs font-semibold text-amber-950 transition-all flex items-start justify-between gap-2 group"
+                        className="text-left p-2.5 rounded-xl border border-amber-200/70 bg-amber-50/40 hover:bg-amber-50 hover:border-amber-300 text-xs font-semibold text-amber-950 transition-all flex items-start justify-between gap-2 group cursor-pointer"
                       >
                         <span>{prompt}</span>
                         <ChevronRight className="w-4 h-4 text-amber-400 group-hover:text-amber-800 flex-shrink-0 transition-colors mt-0.5" />
@@ -669,7 +1074,7 @@ export const CommandPaletteModal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* AI Query Input Bar if not empty */}
+                {/* AI Query Input Bar */}
                 <div className="flex items-center gap-2 pt-2">
                   <input
                     type="text"
@@ -687,7 +1092,7 @@ export const CommandPaletteModal: React.FC = () => {
                   <button
                     onClick={() => handleRunAiAdvisor(aiPrompt)}
                     disabled={isAiLoading || !aiPrompt.trim()}
-                    className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold shadow-2xs disabled:opacity-50 transition-all flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold shadow-2xs disabled:opacity-50 transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     {isAiLoading ? (
                       <>
@@ -710,7 +1115,7 @@ export const CommandPaletteModal: React.FC = () => {
                       <Bot className="w-5 h-5 animate-bounce" />
                     </div>
                     <div className="text-xs font-bold text-amber-900">
-                      Synthesizing MTD Financials, Pipeline Velocity & Overdue Receivables...
+                      Synthesizing MTD Financials, Sector Benchmarks & Gap-Closing Playbooks...
                     </div>
                     <div className="text-[11px] text-slate-500 max-w-md mx-auto">
                       Gemini 3.7 Flash is grounding strategic recommendations strictly in your live organization data.
@@ -734,7 +1139,7 @@ export const CommandPaletteModal: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={copyAiText}
-                          className="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-[11px] font-semibold text-slate-700 flex items-center gap-1 transition-colors"
+                          className="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-[11px] font-semibold text-slate-700 flex items-center gap-1 transition-colors cursor-pointer"
                         >
                           {copiedAi ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                           <span>{copiedAi ? 'Copied' : 'Copy'}</span>
@@ -744,7 +1149,7 @@ export const CommandPaletteModal: React.FC = () => {
                             setActiveView('ai-advisor');
                             setIsCommandPaletteOpen(false);
                           }}
-                          className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[11px] font-bold text-amber-900 flex items-center gap-1 transition-colors"
+                          className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[11px] font-bold text-amber-900 flex items-center gap-1 transition-colors cursor-pointer"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                           <span>Open Full Chat</span>
@@ -789,7 +1194,7 @@ export const CommandPaletteModal: React.FC = () => {
 
                   <button
                     onClick={() => setSelectedCustomer(null)}
-                    className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 text-xs"
+                    className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 text-xs cursor-pointer"
                   >
                     Back to List
                   </button>
@@ -838,7 +1243,7 @@ export const CommandPaletteModal: React.FC = () => {
                       setActiveView('customers');
                       setIsCommandPaletteOpen(false);
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold shadow-2xs transition-all flex items-center gap-1.5"
+                    className="px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <Users className="w-3.5 h-3.5" />
                     <span>View in Customers CRM</span>
@@ -872,7 +1277,7 @@ export const CommandPaletteModal: React.FC = () => {
                         `How should we prevent churn and expand contract value for account: ${selectedCustomer.company} (${selectedCustomer.name}, MRR: ₹${selectedCustomer.monthlyRecurring}, Churn Risk: ${selectedCustomer.churnRiskScore}%)?`
                       );
                     }}
-                    className="px-3 py-2 rounded-xl border border-amber-200 bg-amber-50/50 hover:bg-amber-50 text-xs font-bold text-amber-900 transition-colors flex items-center gap-1.5"
+                    className="px-3 py-2 rounded-xl border border-amber-200 bg-amber-50/50 hover:bg-amber-50 text-xs font-bold text-amber-900 transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <Bot className="w-3.5 h-3.5 text-amber-800" />
                     <span>Ask AI Retention Strategy</span>
@@ -887,11 +1292,11 @@ export const CommandPaletteModal: React.FC = () => {
                 </div>
                 <div className="text-sm font-bold text-slate-700">No matching items found for "{searchQuery}"</div>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  Try searching for a customer company name, view name (e.g. "Revenue"), lead, or query the AI Advisor.
+                  Try searching for report titles (e.g. "Board Deck", "P&L"), industry taxonomy sectors (e.g. "Software", "Healthcare"), action playbooks (e.g. "COGS"), customers, or query the AI Advisor.
                 </p>
                 <button
                   onClick={() => handleRunAiAdvisor(searchQuery)}
-                  className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-800 text-white text-xs font-bold shadow-2xs hover:bg-amber-900 transition-all"
+                  className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-800 text-white text-xs font-bold shadow-2xs hover:bg-amber-900 transition-all cursor-pointer"
                 >
                   <Bot className="w-3.5 h-3.5" />
                   <span>Ask AI Advisor about "{searchQuery}"</span>

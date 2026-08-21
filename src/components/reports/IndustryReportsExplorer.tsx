@@ -43,6 +43,9 @@ import {
   FileText,
   Printer,
 } from 'lucide-react';
+import { TrendIndicator } from '../common/TrendIndicator';
+import { CopyTableButton } from '../common/CopyTableButton';
+import { CopyTableOptions } from '../../utils/clipboardUtils';
 import { INDUSTRY_SECTORS, IndustrySector } from '../../data/industrySectors';
 import { useApp } from '../../context/AppContext';
 import { generateIndustryTaxonomyPDF } from '../../utils/industryTaxonomyPdf';
@@ -279,8 +282,50 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
           </p>
         </div>
 
-        {/* View Layout Toggle & PDF Export Button */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* View Layout Toggle & PDF Export & Copy Table Buttons (Hidden in print) */}
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
+          {/* Copy Table to Clipboard Button */}
+          {filteredSectors.length > 0 && (
+            <CopyTableButton
+              id="copy-industry-taxonomy-table-btn"
+              options={{
+                title: '23-Sector Industry Intelligence & Benchmark Directory',
+                subtitle: `Cross-Industry Benchmarks & Sub-Industry Taxonomies (${filteredSectors.length} Sectors Filtered)`,
+                periodLabel: 'Annual Benchmarks',
+                filteredCategory: searchQuery ? `Query "${searchQuery}"` : 'Active Filter Set',
+                columns: [
+                  { header: 'Industry Sector', key: 'name', align: 'left' },
+                  { header: 'Sub-Industries Count', key: 'subCount', align: 'center' },
+                  { header: 'Benchmark Gross Margin', key: 'margin', align: 'right' },
+                  { header: 'Benchmark LTV : CAC', key: 'ltvCac', align: 'right' },
+                  { header: 'Sales Cycle', key: 'cycle', align: 'right' },
+                ],
+                rows: filteredSectors.map((s) => ({
+                  name: s.name,
+                  subCount: `${s.subIndustriesCount} Sub-domains`,
+                  margin: `${s.benchmarkGrossMargin}%`,
+                  ltvCac: `${s.benchmarkCACtoLTV}x`,
+                  cycle: `${s.typicalSalesCycleDays} Days`,
+                })),
+                highlights: [
+                  `Filtered Industry Sectors: ${filteredSectors.length} of ${INDUSTRY_SECTORS.length}`,
+                  `Average Sector Margin: ${(filteredSectors.reduce((a, b) => a + b.benchmarkGrossMargin, 0) / (filteredSectors.length || 1)).toFixed(1)}%`,
+                  `Average LTV:CAC Multiple: ${(filteredSectors.reduce((a, b) => a + b.benchmarkCACtoLTV, 0) / (filteredSectors.length || 1)).toFixed(1)}x`,
+                ],
+                footerNote: 'AI Studio Cross-Industry Taxonomy & Benchmark Directory',
+              }}
+              label="Copy Table for Email"
+              size="sm"
+              onCopySuccess={() => {
+                addToast(
+                  `Copied ${filteredSectors.length} filtered industry sector benchmarks formatted for email!`,
+                  'success',
+                  'Taxonomy Copied'
+                );
+              }}
+            />
+          )}
+
           {/* PDF Export Button for current view */}
           <button
             type="button"
@@ -320,8 +365,8 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
         </div>
       </div>
 
-      {/* SEARCH BAR & MULTI-SELECT FILTER CONTROLS */}
-      <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-4 space-y-3.5">
+      {/* SEARCH BAR & MULTI-SELECT FILTER CONTROLS (Hidden in print) */}
+      <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-4 space-y-3.5 print:hidden">
         {/* 1. Real-time Search Input */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="relative flex-1">
@@ -503,8 +548,12 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
 
       {/* RESULTS LIST: TABULAR MATRIX OR VISUAL CARDS */}
       {filteredSectors.length === 0 ? (
-        <div className="p-10 text-center bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-          <Search className="w-8 h-8 text-slate-400 mx-auto" />
+        <div
+          role="status"
+          aria-live="polite"
+          className="p-10 text-center bg-slate-50 border border-slate-200 rounded-2xl space-y-2"
+        >
+          <Search className="w-8 h-8 text-slate-400 mx-auto" aria-hidden="true" />
           <h4 className="text-sm font-bold text-slate-800">No industry sectors match your filter criteria</h4>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
             Try adjusting your search query, selecting different sub-industry counts, or toggling additional sector groups.
@@ -513,22 +562,30 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
             type="button"
             onClick={handleClearAllFilters}
             className="mt-2 px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+            aria-label="Reset all search and filter criteria"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Reset All Filters</span>
           </button>
         </div>
       ) : viewLayout === 'table' ? (
         <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
-          <table className="w-full text-left text-xs">
+          <table
+            className="w-full text-left text-xs"
+            role="table"
+            aria-label="23-Sector Industry Taxonomy and Financial Benchmarks Matrix"
+          >
+            <caption className="sr-only">
+              23-Sector Industry Intelligence Directory: Lists sector name, sub-industry domain count, benchmark gross margin, LTV to CAC ratio, and sales cycle.
+            </caption>
             <thead>
               <tr className="border-b border-slate-200 text-slate-600 font-bold bg-slate-50/90 uppercase tracking-wider text-[10px]">
-                <th className="py-3 px-4">Industry Sector</th>
-                <th className="py-3 px-3">Sub-Industries Count</th>
-                <th className="py-3 px-3">Benchmark Gross Margin</th>
-                <th className="py-3 px-3">Benchmark LTV : CAC</th>
-                <th className="py-3 px-3">Sales Cycle</th>
-                <th className="py-3 px-3 text-right">Actions</th>
+                <th scope="col" className="py-3 px-4">Industry Sector</th>
+                <th scope="col" className="py-3 px-3">Sub-Industries Count</th>
+                <th scope="col" className="py-3 px-3">Benchmark Gross Margin</th>
+                <th scope="col" className="py-3 px-3">Benchmark LTV : CAC</th>
+                <th scope="col" className="py-3 px-3">Sales Cycle</th>
+                <th scope="col" className="py-3 px-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -543,7 +600,10 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
                       {/* Sector Name & Icon */}
                       <td className="py-3.5 px-4 font-sans">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-900 flex items-center justify-center shrink-0 border border-slate-200">
+                          <div
+                            className="w-8 h-8 rounded-xl bg-slate-100 text-slate-900 flex items-center justify-center shrink-0 border border-slate-200"
+                            aria-hidden="true"
+                          >
                             <IconComponent className="w-4 h-4 text-slate-800" />
                           </div>
                           <div>
@@ -564,29 +624,68 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
 
                       {/* Sub-Industry Count Pill */}
                       <td className="py-3.5 px-3">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
-                          <Layers className="w-2.5 h-2.5" />
+                        <span
+                          className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1"
+                          aria-label={`${sector.subIndustriesCount} sub-industry domains`}
+                        >
+                          <Layers className="w-2.5 h-2.5" aria-hidden="true" />
                           <span>{sector.subIndustriesCount} Domains</span>
                         </span>
                       </td>
 
                       {/* Gross Margin */}
                       <td className="py-3.5 px-3 font-mono-numeric font-bold text-slate-900">
-                        <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                          {sector.benchmarkGrossMargin}%
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200"
+                            aria-label={`Benchmark gross margin ${sector.benchmarkGrossMargin} percent`}
+                          >
+                            {sector.benchmarkGrossMargin}%
+                          </span>
+                          <TrendIndicator
+                            direction={sector.benchmarkGrossMargin >= 65 ? 'up' : sector.benchmarkGrossMargin <= 35 ? 'down' : 'flat'}
+                            isPositiveGood={true}
+                            size="xs"
+                            variant="inline-icon"
+                            comparisonLabel={`${sector.benchmarkGrossMargin >= 65 ? 'High' : 'Moderate'} margin benchmark`}
+                          />
+                        </div>
                       </td>
 
                       {/* LTV : CAC */}
                       <td className="py-3.5 px-3 font-mono-numeric font-bold text-slate-900">
-                        <span className="text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                          {sector.benchmarkCACtoLTV}x
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200"
+                            aria-label={`Benchmark LTV to CAC ratio ${sector.benchmarkCACtoLTV} multiplier`}
+                          >
+                            {sector.benchmarkCACtoLTV}x
+                          </span>
+                          <TrendIndicator
+                            direction={sector.benchmarkCACtoLTV >= 3.5 ? 'up' : 'down'}
+                            isPositiveGood={true}
+                            size="xs"
+                            variant="inline-icon"
+                            comparisonLabel={`${sector.benchmarkCACtoLTV}x unit multiple`}
+                          />
+                        </div>
                       </td>
 
                       {/* Typical Sales Cycle */}
-                      <td className="py-3.5 px-3 font-mono-numeric text-slate-700">
-                        {sector.typicalSalesCycleDays} Days
+                      <td
+                        className="py-3.5 px-3 font-mono-numeric text-slate-700"
+                        aria-label={`Typical sales cycle ${sector.typicalSalesCycleDays} days`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>{sector.typicalSalesCycleDays} Days</span>
+                          <TrendIndicator
+                            direction={sector.typicalSalesCycleDays <= 45 ? 'up' : 'down'}
+                            isPositiveGood={true}
+                            size="xs"
+                            variant="inline-icon"
+                            comparisonLabel={sector.typicalSalesCycleDays <= 45 ? 'Fast conversion' : 'Enterprise cycle'}
+                          />
+                        </div>
                       </td>
 
                       {/* Actions */}
@@ -595,19 +694,23 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
                           <button
                             type="button"
                             onClick={() => setExpandedSectorId(isExpanded ? null : sector.id)}
+                            aria-expanded={isExpanded}
+                            aria-controls={`sub-industries-detail-${sector.id}`}
                             className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                            aria-label={`${isExpanded ? 'Hide' : 'Show'} sub-industry domain taxonomy for ${sector.name}`}
                           >
                             <span>{isExpanded ? 'Hide' : 'Domains'}</span>
                             {isExpanded ? (
-                              <ChevronUp className="w-3 h-3" />
+                              <ChevronUp className="w-3 h-3" aria-hidden="true" />
                             ) : (
-                              <ChevronDown className="w-3 h-3" />
+                              <ChevronDown className="w-3 h-3" aria-hidden="true" />
                             )}
                           </button>
 
                           <button
                             type="button"
                             onClick={() => handleAdoptSector(sector)}
+                            aria-label={`Adopt ${sector.name} as active organizational benchmark`}
                             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
                               isCurrentOrgIndustry
                                 ? 'bg-emerald-600 text-white shadow-2xs'
@@ -616,7 +719,7 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
                           >
                             {isCurrentOrgIndustry ? (
                               <>
-                                <Check className="w-3 h-3" />
+                                <Check className="w-3 h-3" aria-hidden="true" />
                                 <span>Active</span>
                               </>
                             ) : (
@@ -629,12 +732,12 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
 
                     {/* Expandable Sub-Industries Detail Row */}
                     {isExpanded && (
-                      <tr className="bg-amber-50/20 border-b border-slate-200">
+                      <tr id={`sub-industries-detail-${sector.id}`} className="bg-amber-50/20 border-b border-slate-200">
                         <td colSpan={6} className="p-4">
                           <div className="bg-white rounded-xl border border-amber-200/80 p-4 space-y-3 shadow-2xs">
                             <div className="flex items-center justify-between">
                               <h5 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                                <Layers className="w-3.5 h-3.5 text-amber-600" />
+                                <Layers className="w-3.5 h-3.5 text-amber-600" aria-hidden="true" />
                                 <span>
                                   Extracted Sub-Industry Domains for {sector.name} ({sector.subIndustriesCount})
                                 </span>
@@ -644,14 +747,19 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
                               </span>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                            <div
+                              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2"
+                              role="list"
+                              aria-label={`Sub-industry domains for ${sector.name}`}
+                            >
                               {sector.subIndustries.map((sub, idx) => (
                                 <div
                                   key={idx}
+                                  role="listitem"
                                   className="p-2 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between text-xs"
                                 >
                                   <span className="font-semibold text-slate-800 flex items-center gap-2 truncate">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" aria-hidden="true" />
                                     <span className="truncate">{sub}</span>
                                   </span>
                                   <span className="text-[10px] text-slate-400 font-mono shrink-0">#{idx + 1}</span>
@@ -670,7 +778,11 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
         </div>
       ) : (
         /* Visual Grid Cards View */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+          role="region"
+          aria-label="23-Sector Industry Visual Cards Grid"
+        >
           {filteredSectors.map((sector) => {
             const isCurrentOrgIndustry = currentOrg.industry === sector.name;
             const IconComponent = ICON_MAP[sector.iconName] || Building2;
@@ -678,6 +790,8 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
             return (
               <div
                 key={sector.id}
+                tabIndex={0}
+                aria-label={`${sector.name}: Benchmark margin ${sector.benchmarkGrossMargin} percent, LTV to CAC ${sector.benchmarkCACtoLTV} multiplier, sales cycle ${sector.typicalSalesCycleDays} days`}
                 className={`rounded-2xl border transition-all duration-200 overflow-hidden flex flex-col justify-between ${
                   isCurrentOrgIndustry
                     ? 'bg-white border-slate-900 shadow-md ring-2 ring-slate-900/10'
@@ -688,7 +802,8 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
                 <div className="relative h-24 w-full overflow-hidden bg-slate-950">
                   <img
                     src={sector.imageVisualUrl}
-                    alt={sector.name}
+                    alt=""
+                    aria-hidden="true"
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover opacity-75"
                     loading="lazy"
@@ -697,13 +812,16 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
 
                   <div className="absolute top-2 right-2">
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-black/60 text-amber-300 backdrop-blur-xs border border-white/20 shadow-xs flex items-center gap-1">
-                      <Layers className="w-2.5 h-2.5" />
+                      <Layers className="w-2.5 h-2.5" aria-hidden="true" />
                       <span>{sector.subIndustriesCount} Sub-Industries</span>
                     </span>
                   </div>
 
                   <div className="absolute bottom-2 left-3 flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-xl bg-white/90 text-slate-900 flex items-center justify-center shadow-xs">
+                    <div
+                      className="w-7 h-7 rounded-xl bg-white/90 text-slate-900 flex items-center justify-center shadow-xs"
+                      aria-hidden="true"
+                    >
                       <IconComponent className="w-3.5 h-3.5 text-slate-900" />
                     </div>
                     {isCurrentOrgIndustry && (
@@ -724,7 +842,11 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
                   </div>
 
                   {/* Financial Telemetry Pills */}
-                  <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] bg-slate-50 p-2 rounded-xl border border-slate-200/80">
+                  <div
+                    className="grid grid-cols-3 gap-1.5 text-center text-[10px] bg-slate-50 p-2 rounded-xl border border-slate-200/80"
+                    role="group"
+                    aria-label={`Financial benchmark statistics for ${sector.name}`}
+                  >
                     <div>
                       <div className="text-slate-400">Margin</div>
                       <div className="font-black text-slate-900 font-mono-numeric mt-0.5">
@@ -746,10 +868,11 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
                   </div>
 
                   {/* Sub-industries tags */}
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1" role="list" aria-label="Sub-industries list">
                     {sector.subIndustries.slice(0, 3).map((sub, idx) => (
                       <span
                         key={idx}
+                        role="listitem"
                         className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium truncate max-w-[140px]"
                       >
                         {sub}
@@ -766,6 +889,7 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
                   <button
                     type="button"
                     onClick={() => handleAdoptSector(sector)}
+                    aria-label={`Adopt ${sector.name} sector for organizational benchmarks`}
                     className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                       isCurrentOrgIndustry
                         ? 'bg-emerald-600 text-white shadow-2xs'
@@ -774,7 +898,7 @@ export const IndustryReportsExplorer: React.FC<IndustryReportsExplorerProps> = (
                   >
                     {isCurrentOrgIndustry ? (
                       <>
-                        <Check className="w-3.5 h-3.5" />
+                        <Check className="w-3.5 h-3.5" aria-hidden="true" />
                         <span>Active Org Sector</span>
                       </>
                     ) : (
